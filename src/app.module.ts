@@ -4,6 +4,10 @@ import { AppController, AppService } from './app';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { ProductsModule } from './products/products.module';
+import { CartModule } from './cart/cart.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { AiModule } from './common/ai/ai.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -15,6 +19,10 @@ import configuration from './config/configuration';
     DatabaseModule,
     AuthModule,
     UsersModule,
+    ProductsModule,
+    CartModule,
+    TransactionsModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

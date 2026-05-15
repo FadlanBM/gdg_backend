@@ -7,4 +7,8 @@ export default () => ({
     secret: process.env.JWT_SECRET,
     expiresIn: '1h',
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+    baseUrl: process.env.OPENAI_API_BASE,
+  },
 });
