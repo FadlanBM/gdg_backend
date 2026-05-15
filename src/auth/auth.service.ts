@@ -26,11 +26,13 @@ export class AuthService {
     };
   }
 
-  async register(data: any) {
-    const { email, password, role, namaLengkap } = data;
+  async register(data: { email: string; pass: string; role: 'petani' | 'pembeli'; namaLengkap: string }) {
+    const { email, pass, role, namaLengkap } = data;
+    const hashedPassword = await bcrypt.hash(pass, 10);
+    
     const user = await this.usersService.create({
       email,
-      password,
+      password: hashedPassword,
       role,
     });
 

@@ -1,6 +1,8 @@
 import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -9,7 +11,9 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'User login' })
-  async login(@Body() loginDto: { email: string; pass: string }) {
+  @ApiResponse({ status: 201, description: 'User successfully logged in.' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials.' })
+  async login(@Body() loginDto: LoginDto) {
     const user = await this.authService.validateUser(loginDto.email, loginDto.pass);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -19,21 +23,8 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({ summary: 'User registration' })
-  async register(
-    @Body()
-    registerDto: {
-      email: string;
-      pass: string;
-      role: 'petani' | 'pembeli';
-      namaLengkap: string;
-    },
-  ) {
-    const hashedPassword = await bcrypt.hash(registerDto.pass, 10);
-    return this.authService.register({
-      email: registerDto.email,
-      password: hashedPassword,
-      role: registerDto.role,
-      namaLengkap: registerDto.namaLengkap,
-    });
+  @ApiResponse({ status: 201, description: 'User successfully registered.' })
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
   }
 }
