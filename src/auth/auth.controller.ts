@@ -1,8 +1,9 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, UsePipes } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { LoginDto, loginSchema } from './dto/login.dto';
+import { RegisterDto, registerSchema } from './dto/register.dto';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -10,6 +11,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
+  @UsePipes(new ZodValidationPipe(loginSchema))
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 201, description: 'User successfully logged in.' })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
@@ -25,6 +27,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @UsePipes(new ZodValidationPipe(registerSchema))
   @ApiOperation({ summary: 'User registration' })
   @ApiResponse({ status: 201, description: 'User successfully registered.' })
   async register(@Body() registerDto: RegisterDto) {

@@ -11,4 +11,9 @@ export default () => ({
     apiKey: process.env.OPENAI_API_KEY,
     baseUrl: process.env.OPENAI_API_BASE,
   },
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_KEY,
+    bucket: process.env.SUPABASE_BUCKET || 'assets',
+  },
 });

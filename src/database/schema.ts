@@ -63,7 +63,22 @@ export const profiles = pgTable('profiles', {
   nomorTelepon: varchar('nomor_telepon', { length: 20 }),
   alamatLengkap: text('alamat_lengkap'),
   titikLokasi: varchar('titik_lokasi', { length: 255 }),
+  fotoProfil: varchar('foto_profil', { length: 500 }),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// 2.5. Tabel Assets (Global)
+export const assets = pgTable('assets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  url: varchar('url', { length: 1000 }).notNull(),
+  mimeType: varchar('mime_type', { length: 100 }),
+  size: integer('size'),
+  type: varchar('type', { length: 50 }).default('other'), // 'temp', 'avatar', 'product', 'payment_proof', 'other'
+  uploadedById: uuid('uploaded_by_id').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // 3. Tabel Products

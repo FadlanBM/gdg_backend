@@ -9,10 +9,14 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { CheckoutDto } from './dto/checkout.dto';
+import { AssetsService } from '../common/assets/assets.service';
 
 @Injectable()
 export class TransactionsService {
-  constructor(@Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>) {}
+  constructor(
+    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
+    private assetsService: AssetsService,
+  ) {}
 
   async checkout(pembeliId: string, dto: CheckoutDto) {
     // 1. Get items in cart
@@ -139,6 +143,41 @@ export class TransactionsService {
     if (results.length === 0) {
       throw new NotFoundException('Transaction not found');
     }
+    return results[0];
+  }
+
+  async submitPaymentProof(
+    id: string,
+    pembeliId: string,
+    buktiBayarUrl: string,
+  ) {
+    const transaction = await this.findOne(id);
+
+    if (transaction.pembeliId !== pembeliId) {
+      throw new BadRequestException('You do not own this transaction');
+    }
+
+    let permanentUrl = buktiBayarUrl;
+    if (buktiBayarUrl && buktiBayarUrl.includes('/uploads/temp/')) {
+      try {
+        permanentUrl = await this.assetsService.moveFileToPermanent(
+          buktiBayarUrl,
+          'transactions',
+        );
+      } catch (err) {
+        console.error('Failed to move payment asset:', err);
+      }
+    }
+
+    const results = await this.db
+      .update(schema.transactions)
+      .set({
+        buktiBayarUrl: permanentUrl,
+        statusPembayaran: 'berhasil',
+      })
+      .where(eq(schema.transactions.id, id))
+      .returning();
+
     return results[0];
   }
 }

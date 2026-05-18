@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { AssetsService } from '../common/assets/assets.service';
 
 interface ValidatedUser {
   id: string;
@@ -16,6 +17,7 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private assetsService: AssetsService,
   ) {}
 
   async validateUser(
@@ -45,14 +47,41 @@ export class AuthService {
     namaLengkap: string;
     nomorTelepon?: string;
     alamatLengkap?: string;
+    fotoProfil?: string;
   }) {
-    const { email, pass, role, namaLengkap, nomorTelepon, alamatLengkap } =
-      data;
+    const {
+      email,
+      pass,
+      role,
+      namaLengkap,
+      nomorTelepon,
+      alamatLengkap,
+      fotoProfil,
+    } = data;
+
+    // Check if user already exists
+    const existingUser = await this.usersService.findOneByEmail(email);
+    if (existingUser) {
+      throw new ConflictException('User already exists');
+    }
+
     const hashedPassword = await bcrypt.hash(pass, 10);
 
     const roleRecord = await this.usersService.findRoleByName(role);
     if (!roleRecord) {
       throw new BadRequestException(`Role '${role}' not found`);
+    }
+
+    let uploadedFotoUrl: string | undefined = undefined;
+    if (fotoProfil) {
+      try {
+        uploadedFotoUrl = await this.assetsService.uploadToSupabase(
+          fotoProfil,
+          'avatars',
+        );
+      } catch (err) {
+        console.error('Failed to upload profile photo to Supabase:', err);
+      }
     }
 
     const user = await this.usersService.create({
@@ -66,6 +95,7 @@ export class AuthService {
       namaLengkap,
       nomorTelepon,
       alamatLengkap,
+      fotoProfil: uploadedFotoUrl,
     });
 
     return {

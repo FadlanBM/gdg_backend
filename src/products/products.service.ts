@@ -10,19 +10,34 @@ import * as schema from '../database/schema';
 import { eq, and } from 'drizzle-orm';
 import { CreateProductDto } from './dto/create-product.dto';
 import { AiService } from '../common/ai/ai.service';
+import { AssetsService } from '../common/assets/assets.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private aiService: AiService,
+    private assetsService: AssetsService,
   ) {}
 
   async create(petaniId: string, dto: CreateProductDto) {
+    let fotoUrl = dto.fotoUrl;
+    if (fotoUrl && fotoUrl.includes('/uploads/temp/')) {
+      try {
+        fotoUrl = await this.assetsService.moveFileToPermanent(
+          fotoUrl,
+          'products',
+        );
+      } catch (err) {
+        console.error('Failed to move product asset:', err);
+      }
+    }
+
     const results = await this.db
       .insert(schema.products)
       .values({
         ...dto,
+        fotoUrl,
         petaniId,
         status: 'pending',
       })

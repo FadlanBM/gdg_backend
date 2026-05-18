@@ -11,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { SubmitPaymentDto } from './dto/submit-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/guards/roles.decorator';
@@ -49,5 +50,20 @@ export class TransactionsController {
     @Body('status') status: 'diproses' | 'dikirim' | 'selesai',
   ) {
     return this.transactionsService.updateStatus(id, status);
+  }
+
+  @Patch(':id/payment')
+  @Roles('pembeli')
+  @ApiOperation({ summary: 'Submit payment proof (Pembeli only)' })
+  submitPayment(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() dto: SubmitPaymentDto,
+  ) {
+    return this.transactionsService.submitPaymentProof(
+      id,
+      req.user.userId,
+      dto.buktiBayarUrl,
+    );
   }
 }

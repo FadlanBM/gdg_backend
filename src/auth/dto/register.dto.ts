@@ -1,14 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEmail, MinLength } from 'class-validator';
+import { z } from 'zod';
+
+export const registerSchema = z.object({
+  email: z.string().email('Format email tidak valid'),
+  pass: z.string().min(6, 'Password minimal 6 karakter'),
+  role: z.enum(['petani', 'pembeli'], {
+    message: "Role harus berupa 'petani' atau 'pembeli'",
+  }),
+  namaLengkap: z.string().min(1, 'Nama lengkap harus diisi'),
+  nomorTelepon: z.string().optional(),
+  alamatLengkap: z.string().optional(),
+  fotoProfil: z.string().optional(),
+});
 
 export class RegisterDto {
   @ApiProperty({ example: 'user@example.com', description: 'User email' })
-  @IsEmail()
   email: string;
 
   @ApiProperty({ example: 'password123', description: 'User password' })
-  @IsString()
-  @MinLength(6)
   pass: string;
 
   @ApiProperty({
@@ -19,7 +28,6 @@ export class RegisterDto {
   role: 'petani' | 'pembeli';
 
   @ApiProperty({ example: 'John Doe', description: 'User full name' })
-  @IsString()
   namaLengkap: string;
 
   @ApiProperty({
@@ -27,8 +35,6 @@ export class RegisterDto {
     description: 'User phone number',
     required: false,
   })
-  @IsString()
-  @IsOptional()
   nomorTelepon?: string;
 
   @ApiProperty({
@@ -36,7 +42,12 @@ export class RegisterDto {
     description: 'User full address',
     required: false,
   })
-  @IsString()
-  @IsOptional()
   alamatLengkap?: string;
+
+  @ApiProperty({
+    example: 'temp-1715967000-4716.png',
+    description: 'File name of the uploaded temporary avatar/profile photo',
+    required: false,
+  })
+  fotoProfil?: string;
 }

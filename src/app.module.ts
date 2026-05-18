@@ -8,6 +8,7 @@ import { ProductsModule } from './products/products.module';
 import { CartModule } from './cart/cart.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { AiModule } from './common/ai/ai.module';
+import { AssetsModule } from './common/assets/assets.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -23,6 +24,7 @@ import configuration from './config/configuration';
     CartModule,
     TransactionsModule,
     AiModule,
+    AssetsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -45,4 +45,28 @@ export class UsersService {
       .returning();
     return results[0];
   }
+
+  async findProfileByUserId(userId: string) {
+    const results = await this.db
+      .select({
+        id: schema.users.id,
+        email: schema.users.email,
+        role: schema.roles.name,
+        profile: {
+          id: schema.profiles.id,
+          namaLengkap: schema.profiles.namaLengkap,
+          nomorTelepon: schema.profiles.nomorTelepon,
+          alamatLengkap: schema.profiles.alamatLengkap,
+          titikLokasi: schema.profiles.titikLokasi,
+          fotoProfil: schema.profiles.fotoProfil,
+          updatedAt: schema.profiles.updatedAt,
+        },
+      })
+      .from(schema.users)
+      .leftJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
+      .leftJoin(schema.profiles, eq(schema.users.id, schema.profiles.userId))
+      .where(eq(schema.users.id, userId));
+
+    return results[0];
+  }
 }
