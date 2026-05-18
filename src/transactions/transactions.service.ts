@@ -1,14 +1,21 @@
-import { Injectable, Inject, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { CheckoutDto } from './dto/checkout.dto';
+import { AssetsService } from '../common/assets/assets.service';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
+    private assetsService: AssetsService,
   ) {}
 
   async checkout(pembeliId: string, dto: CheckoutDto) {
@@ -34,7 +41,9 @@ export class TransactionsService {
     // 2. Calculate total and create snapshot
     let total = 0;
     const itemsToCreate = cartItems.map((item) => {
-      const harga = parseFloat(item.product?.aiAnalysis?.hargaAkhirPetani || '0');
+      const harga = parseFloat(
+        item.product?.aiAnalysis?.hargaAkhirPetani || '0',
+      );
       total += harga * item.jumlah;
       return {
         productId: item.productId,
@@ -130,10 +139,45 @@ export class TransactionsService {
       .set({ statusPesanan: status })
       .where(eq(schema.transactions.id, id))
       .returning();
-    
+
     if (results.length === 0) {
       throw new NotFoundException('Transaction not found');
     }
+    return results[0];
+  }
+
+  async submitPaymentProof(
+    id: string,
+    pembeliId: string,
+    buktiBayarUrl: string,
+  ) {
+    const transaction = await this.findOne(id);
+
+    if (transaction.pembeliId !== pembeliId) {
+      throw new BadRequestException('You do not own this transaction');
+    }
+
+    let permanentUrl = buktiBayarUrl;
+    if (buktiBayarUrl && buktiBayarUrl.includes('/uploads/temp/')) {
+      try {
+        permanentUrl = await this.assetsService.moveFileToPermanent(
+          buktiBayarUrl,
+          'transactions',
+        );
+      } catch (err) {
+        console.error('Failed to move payment asset:', err);
+      }
+    }
+
+    const results = await this.db
+      .update(schema.transactions)
+      .set({
+        buktiBayarUrl: permanentUrl,
+        statusPembayaran: 'berhasil',
+      })
+      .where(eq(schema.transactions.id, id))
+      .returning();
+
     return results[0];
   }
 }

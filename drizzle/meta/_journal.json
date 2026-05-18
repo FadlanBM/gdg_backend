@@ -8,6 +8,20 @@
       "when": 1778818541340,
       "tag": "0000_mean_vargas",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779100707848,
+      "tag": "0001_goofy_tombstone",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779100745663,
+      "tag": "0002_eager_freak",
+      "breakpoints": true
     }
   ]
 }

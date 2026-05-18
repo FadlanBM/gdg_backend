@@ -20,10 +20,16 @@ export class AiService {
     });
   }
 
-  async analyzeProduct(productInfo: { nama: string; deskripsi: string; kategori: string }) {
+  async analyzeProduct(productInfo: {
+    nama: string;
+    deskripsi: string;
+    kategori: string;
+  }) {
     const parser = StructuredOutputParser.fromZodSchema(
       z.object({
-        gradeSni: z.enum(['A', 'B', 'C']).describe('Grade kualitas berdasarkan standar SNI'),
+        gradeSni: z
+          .enum(['A', 'B', 'C'])
+          .describe('Grade kualitas berdasarkan standar SNI'),
         skorKualitas: z.number().describe('Skor kualitas dari 0-100'),
         saranHarga: z.number().describe('Rekomendasi harga jual dalam Rupiah'),
         alasan: z.string().describe('Alasan singkat pemberian grade'),
@@ -55,7 +61,8 @@ export class AiService {
         gradeSni: 'B' as const,
         skorKualitas: 75,
         saranHarga: 15000,
-        alasan: 'Analisis otomatis gagal (cek API Key/Koneksi), menggunakan nilai default.',
+        alasan:
+          'Analisis otomatis gagal (cek API Key/Koneksi), menggunakan nilai default.',
       };
     }
   }

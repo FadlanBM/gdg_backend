@@ -1,23 +1,43 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
 import { eq, and } from 'drizzle-orm';
 import { CreateProductDto } from './dto/create-product.dto';
 import { AiService } from '../common/ai/ai.service';
+import { AssetsService } from '../common/assets/assets.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private aiService: AiService,
+    private assetsService: AssetsService,
   ) {}
 
   async create(petaniId: string, dto: CreateProductDto) {
+    let fotoUrl = dto.fotoUrl;
+    if (fotoUrl && fotoUrl.includes('/uploads/temp/')) {
+      try {
+        fotoUrl = await this.assetsService.moveFileToPermanent(
+          fotoUrl,
+          'products',
+        );
+      } catch (err) {
+        console.error('Failed to move product asset:', err);
+      }
+    }
+
     const results = await this.db
       .insert(schema.products)
       .values({
         ...dto,
+        fotoUrl,
         petaniId,
         status: 'pending',
       })
@@ -39,7 +59,7 @@ export class ProductsService {
       .select()
       .from(schema.products)
       .where(eq(schema.products.id, id));
-    
+
     if (results.length === 0) {
       throw new NotFoundException('Product not found');
     }
@@ -99,7 +119,9 @@ export class ProductsService {
     } catch (e) {
       if (e instanceof NotFoundException) throw e;
       console.error('Update Status Error:', e);
-      throw new BadRequestException(`Failed to update status. Ensure status is 'active' or 'non-active'.`);
+      throw new BadRequestException(
+        `Failed to update status. Ensure status is 'active' or 'non-active'.`,
+      );
     }
   }
 }

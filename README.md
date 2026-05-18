@@ -63,7 +63,7 @@ $ npm run start:prod
 
 ## API Documentation
 Once the app is running, access the interactive Swagger documentation at:
-`http://localhost:3000/api`
+`http://localhost:3000/api-docs`
 
 ## Features implemented
 - [x] PostgreSQL connection with Drizzle ORM

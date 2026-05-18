@@ -7,9 +7,7 @@ import { AddToCartDto, UpdateCartDto } from './dto/cart.dto';
 
 @Injectable()
 export class CartService {
-  constructor(
-    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
-  ) {}
+  constructor(@Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>) {}
 
   async addToCart(pembeliId: string, dto: AddToCartDto) {
     // Check if item already in cart
@@ -62,7 +60,7 @@ export class CartService {
       .set({ jumlah: dto.jumlah })
       .where(eq(schema.carts.id, id))
       .returning();
-    
+
     if (results.length === 0) {
       throw new NotFoundException('Cart item not found');
     }
@@ -74,7 +72,7 @@ export class CartService {
       .delete(schema.carts)
       .where(eq(schema.carts.id, id))
       .returning();
-    
+
     if (results.length === 0) {
       throw new NotFoundException('Cart item not found');
     }
