@@ -1,4 +1,9 @@
-import { Injectable, Inject, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
@@ -7,9 +12,7 @@ import { CheckoutDto } from './dto/checkout.dto';
 
 @Injectable()
 export class TransactionsService {
-  constructor(
-    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
-  ) {}
+  constructor(@Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>) {}
 
   async checkout(pembeliId: string, dto: CheckoutDto) {
     // 1. Get items in cart
@@ -34,7 +37,9 @@ export class TransactionsService {
     // 2. Calculate total and create snapshot
     let total = 0;
     const itemsToCreate = cartItems.map((item) => {
-      const harga = parseFloat(item.product?.aiAnalysis?.hargaAkhirPetani || '0');
+      const harga = parseFloat(
+        item.product?.aiAnalysis?.hargaAkhirPetani || '0',
+      );
       total += harga * item.jumlah;
       return {
         productId: item.productId,
@@ -130,7 +135,7 @@ export class TransactionsService {
       .set({ statusPesanan: status })
       .where(eq(schema.transactions.id, id))
       .returning();
-    
+
     if (results.length === 0) {
       throw new NotFoundException('Transaction not found');
     }

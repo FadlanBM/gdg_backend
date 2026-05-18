@@ -6,16 +6,30 @@ import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
-  ) {}
+  constructor(@Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>) {}
 
   async findOneByEmail(email: string) {
     const results = await this.db
-      .select()
+      .select({
+        id: schema.users.id,
+        email: schema.users.email,
+        password: schema.users.password,
+        roleId: schema.users.roleId,
+        createdAt: schema.users.createdAt,
+        role: schema.roles.name,
+      })
       .from(schema.users)
+      .leftJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
       .where(eq(schema.users.email, email));
-    
+
+    return results[0];
+  }
+
+  async findRoleByName(name: string) {
+    const results = await this.db
+      .select()
+      .from(schema.roles)
+      .where(eq(schema.roles.name, name));
     return results[0];
   }
 

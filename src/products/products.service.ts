@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
@@ -39,7 +44,7 @@ export class ProductsService {
       .select()
       .from(schema.products)
       .where(eq(schema.products.id, id));
-    
+
     if (results.length === 0) {
       throw new NotFoundException('Product not found');
     }
@@ -99,7 +104,9 @@ export class ProductsService {
     } catch (e) {
       if (e instanceof NotFoundException) throw e;
       console.error('Update Status Error:', e);
-      throw new BadRequestException(`Failed to update status. Ensure status is 'active' or 'non-active'.`);
+      throw new BadRequestException(
+        `Failed to update status. Ensure status is 'active' or 'non-active'.`,
+      );
     }
   }
 }

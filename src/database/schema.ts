@@ -13,19 +13,43 @@ import {
 import { relations } from 'drizzle-orm';
 
 // Enums
-export const roleEnum = pgEnum('role', ['petani', 'pembeli']);
-export const productKategoriEnum = pgEnum('kategori', ['sayur', 'buah', 'benih']);
-export const productStatusEnum = pgEnum('status', ['pending', 'active', 'non-active']);
+export const productKategoriEnum = pgEnum('kategori', [
+  'sayur',
+  'buah',
+  'benih',
+]);
+export const productStatusEnum = pgEnum('status', [
+  'pending',
+  'active',
+  'non-active',
+]);
 export const metodeBayarEnum = pgEnum('metode_bayar', ['QRIS', 'Transfer']);
-export const statusPembayaranEnum = pgEnum('status_pembayaran', ['menunggu', 'berhasil', 'gagal']);
-export const statusPesananEnum = pgEnum('status_pesanan', ['diproses', 'dikirim', 'selesai']);
+export const statusPembayaranEnum = pgEnum('status_pembayaran', [
+  'menunggu',
+  'berhasil',
+  'gagal',
+]);
+export const statusPesananEnum = pgEnum('status_pesanan', [
+  'diproses',
+  'dikirim',
+  'selesai',
+]);
+
+// 0. Tabel Roles
+export const roles = pgTable('roles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 50 }).unique().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 
 // 1. Tabel Users
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).unique().notNull(),
   password: varchar('password', { length: 255 }).notNull(),
-  role: roleEnum('role').notNull(),
+  roleId: uuid('role_id')
+    .references(() => roles.id)
+    .notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -45,7 +69,9 @@ export const profiles = pgTable('profiles', {
 // 3. Tabel Products
 export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
-  petaniId: uuid('petani_id').references(() => users.id, { onDelete: 'cascade' }),
+  petaniId: uuid('petani_id').references(() => users.id, {
+    onDelete: 'cascade',
+  }),
   namaProduk: varchar('nama_produk', { length: 255 }).notNull(),
   kategori: productKategoriEnum('kategori').notNull(),
   deskripsi: text('deskripsi'),
@@ -71,8 +97,12 @@ export const aiAnalysis = pgTable('ai_analysis', {
 // 5. Tabel Carts
 export const carts = pgTable('carts', {
   id: uuid('id').primaryKey().defaultRandom(),
-  pembeliId: uuid('pembeli_id').references(() => users.id, { onDelete: 'cascade' }),
-  productId: uuid('product_id').references(() => products.id, { onDelete: 'cascade' }),
+  pembeliId: uuid('pembeli_id').references(() => users.id, {
+    onDelete: 'cascade',
+  }),
+  productId: uuid('product_id').references(() => products.id, {
+    onDelete: 'cascade',
+  }),
   jumlah: integer('jumlah').notNull().default(1),
   isCheckout: boolean('is_checkout').default(false),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -82,9 +112,13 @@ export const carts = pgTable('carts', {
 export const transactions = pgTable('transactions', {
   id: uuid('id').primaryKey().defaultRandom(),
   pembeliId: uuid('pembeli_id').references(() => users.id),
-  totalPembayaran: decimal('total_pembayaran', { precision: 12, scale: 2 }).notNull(),
+  totalPembayaran: decimal('total_pembayaran', {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
   metodeBayar: metodeBayarEnum('metode_bayar').notNull(),
-  statusPembayaran: statusPembayaranEnum('status_pembayaran').default('menunggu'),
+  statusPembayaran:
+    statusPembayaranEnum('status_pembayaran').default('menunggu'),
   statusPesanan: statusPesananEnum('status_pesanan').default('diproses'),
   buktiBayarUrl: varchar('bukti_bayar_url', { length: 500 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -93,10 +127,15 @@ export const transactions = pgTable('transactions', {
 // 7. Tabel Transaction_Items
 export const transactionItems = pgTable('transaction_items', {
   id: serial('id').primaryKey(),
-  transactionId: uuid('transaction_id').references(() => transactions.id, { onDelete: 'cascade' }),
+  transactionId: uuid('transaction_id').references(() => transactions.id, {
+    onDelete: 'cascade',
+  }),
   productId: uuid('product_id').references(() => products.id),
   jumlah: integer('jumlah').notNull(),
-  hargaSnapshot: decimal('harga_snapshot', { precision: 12, scale: 2 }).notNull(),
+  hargaSnapshot: decimal('harga_snapshot', {
+    precision: 12,
+    scale: 2,
+  }).notNull(),
 });
 
 // Relations
@@ -105,9 +144,17 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [profiles.userId],
   }),
+  role: one(roles, {
+    fields: [users.roleId],
+    references: [roles.id],
+  }),
   products: many(products),
   carts: many(carts),
   transactions: many(transactions),
+}));
+
+export const rolesRelations = relations(roles, ({ many }) => ({
+  users: many(users),
 }));
 
 export const profilesRelations = relations(profiles, ({ one }) => ({
@@ -148,21 +195,27 @@ export const cartsRelations = relations(carts, ({ one }) => ({
   }),
 }));
 
-export const transactionsRelations = relations(transactions, ({ one, many }) => ({
-  pembeli: one(users, {
-    fields: [transactions.pembeliId],
-    references: [users.id],
+export const transactionsRelations = relations(
+  transactions,
+  ({ one, many }) => ({
+    pembeli: one(users, {
+      fields: [transactions.pembeliId],
+      references: [users.id],
+    }),
+    items: many(transactionItems),
   }),
-  items: many(transactionItems),
-}));
+);
 
-export const transactionItemsRelations = relations(transactionItems, ({ one }) => ({
-  transaction: one(transactions, {
-    fields: [transactionItems.transactionId],
-    references: [transactions.id],
+export const transactionItemsRelations = relations(
+  transactionItems,
+  ({ one }) => ({
+    transaction: one(transactions, {
+      fields: [transactionItems.transactionId],
+      references: [transactions.id],
+    }),
+    product: one(products, {
+      fields: [transactionItems.productId],
+      references: [products.id],
+    }),
   }),
-  product: one(products, {
-    fields: [transactionItems.productId],
-    references: [products.id],
-  }),
-}));
+);
