@@ -59,7 +59,10 @@ export class AssetsController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (req, file, cb) => {
-          cb(null, join(process.cwd(), 'uploads/temp'));
+          const tempDir = process.env.VERCEL
+            ? '/tmp'
+            : join(process.cwd(), 'uploads/temp');
+          cb(null, tempDir);
         },
         filename: (req, file, cb) => {
           const uniqueSuffix =
