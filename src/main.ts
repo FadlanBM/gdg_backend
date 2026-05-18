@@ -17,8 +17,12 @@ async function bootstrap() {
     join(process.cwd(), 'uploads/transactions'),
   ];
   for (const dir of uploadDirs) {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    } catch (e) {
+      console.warn(`[WARN] Could not create directory ${dir}: ${e.message}`);
     }
   }
 

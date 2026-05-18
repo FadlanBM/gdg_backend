@@ -52,13 +52,20 @@ export class AssetsService {
       throw new Error('Invalid file name');
     }
 
-    const tempPath = join(this.uploadsRoot, 'temp', fileName);
+    let tempPath = join(this.uploadsRoot, 'temp', fileName);
+    if (!fs.existsSync(tempPath) && fs.existsSync(join('/tmp', fileName))) {
+      tempPath = join('/tmp', fileName);
+    }
     const destDir = join(this.uploadsRoot, subFolder);
     const destPath = join(destDir, fileName);
 
     // Ensure destination folder exists
     if (!fs.existsSync(destDir)) {
-      fs.mkdirSync(destDir, { recursive: true });
+      try {
+        fs.mkdirSync(destDir, { recursive: true });
+      } catch (err) {
+        this.logger.warn(`Could not create permanent folder ${destDir}: ${err.message}`);
+      }
     }
 
     // Check if file exists in temp
@@ -105,7 +112,10 @@ export class AssetsService {
       throw new Error('Invalid file name');
     }
 
-    const tempPath = join(this.uploadsRoot, 'temp', fileName);
+    let tempPath = join(this.uploadsRoot, 'temp', fileName);
+    if (!fs.existsSync(tempPath) && fs.existsSync(join('/tmp', fileName))) {
+      tempPath = join('/tmp', fileName);
+    }
 
     // Check if temporary file exists
     if (!fs.existsSync(tempPath)) {
