@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 import { UsersService } from '../users/users.service';
 import { AssetsService } from '../common/assets/assets.service';
 
@@ -48,6 +49,10 @@ export class AuthService {
     nomorTelepon?: string;
     alamatLengkap?: string;
     fotoProfil?: string;
+    latitude?: number;
+    longitude?: number;
+    formattedAddress?: string;
+    googlePlaceId?: string;
   }) {
     const {
       email,
@@ -57,6 +62,10 @@ export class AuthService {
       nomorTelepon,
       alamatLengkap,
       fotoProfil,
+      latitude,
+      longitude,
+      formattedAddress,
+      googlePlaceId,
     } = data;
 
     // Check if user already exists
@@ -98,20 +107,53 @@ export class AuthService {
       fotoProfil: uploadedFotoUrl,
     });
 
+    if (latitude !== undefined && longitude !== undefined) {
+      await this.usersService.createLocation({
+        userId: user.id,
+        latitude: latitude.toString(),
+        longitude: longitude.toString(),
+        formattedAddress,
+        googlePlaceId,
+      });
+    }
+
     return {
       ...user,
       role,
     };
   }
 
+  private googleClient = new OAuth2Client();
+
+  async verifyGoogleToken(idToken: string) {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+      });
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new BadRequestException('Invalid Google ID Token payload');
+      }
+      return {
+        googleId: payload.sub,
+        email: payload.email!,
+        namaLengkap: payload.name || payload.given_name || 'Google User',
+        fotoProfil: payload.picture,
+      };
+    } catch (error) {
+      throw new BadRequestException('Token Google tidak valid atau kedaluwarsa');
+    }
+  }
+
   async googleLogin(data: {
-    email: string;
-    googleId: string;
-    namaLengkap: string;
-    fotoProfil?: string;
+    idToken: string;
     role?: 'petani' | 'pembeli';
   }) {
-    const { email, googleId, namaLengkap, fotoProfil, role = 'pembeli' } = data;
+    const { idToken, role = 'pembeli' } = data;
+
+    // Verify and decode the google idToken securely
+    const verifiedPayload = await this.verifyGoogleToken(idToken);
+    const { email, googleId, namaLengkap, fotoProfil } = verifiedPayload;
 
     // 1. Check if user already exists by googleId
     const user = await this.usersService.findOneByGoogleId(googleId);

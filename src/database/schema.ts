@@ -68,6 +68,20 @@ export const profiles = pgTable('profiles', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// 2.3 Tabel User Locations (Google Maps Coordinates & Details)
+export const userLocations = pgTable('user_locations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
+  latitude: decimal('latitude', { precision: 10, scale: 8 }).notNull(),
+  longitude: decimal('longitude', { precision: 11, scale: 8 }).notNull(),
+  formattedAddress: text('formatted_address'),
+  googlePlaceId: varchar('google_place_id', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // 2.5. Tabel Assets (Global)
 export const assets = pgTable('assets', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -164,6 +178,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.roleId],
     references: [roles.id],
   }),
+  location: one(userLocations, {
+    fields: [users.id],
+    references: [userLocations.userId],
+  }),
   products: many(products),
   carts: many(carts),
   transactions: many(transactions),
@@ -176,6 +194,13 @@ export const rolesRelations = relations(roles, ({ many }) => ({
 export const profilesRelations = relations(profiles, ({ one }) => ({
   user: one(users, {
     fields: [profiles.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userLocationsRelations = relations(userLocations, ({ one }) => ({
+  user: one(users, {
+    fields: [userLocations.userId],
     references: [users.id],
   }),
 }));
