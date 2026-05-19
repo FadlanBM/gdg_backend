@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
@@ -141,15 +145,15 @@ export class AuthService {
         fotoProfil: payload.picture,
       };
     } catch (error) {
-      throw new BadRequestException('Token Google tidak valid atau kedaluwarsa');
+      throw new BadRequestException(
+        'Token Google tidak valid atau kedaluwarsa',
+      );
     }
   }
 
-  async googleLogin(data: {
-    idToken: string;
-    role?: 'petani' | 'pembeli';
-  }) {
-    const { idToken, role = 'pembeli' } = data;
+  async googleLogin(data: { idToken: string }) {
+    const { idToken } = data;
+    const role = 'pembeli';
 
     // Verify and decode the google idToken securely
     const verifiedPayload = await this.verifyGoogleToken(idToken);
@@ -173,7 +177,7 @@ export class AuthService {
     if (existingUser) {
       // Link the account to googleId
       await this.usersService.updateGoogleId(existingUser.id, googleId);
-      
+
       return this.login({
         id: existingUser.id,
         email: existingUser.email,

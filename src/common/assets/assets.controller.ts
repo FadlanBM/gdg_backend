@@ -50,7 +50,8 @@ export class AssetsController {
         name: { type: 'string', example: 'temp-1715967000-4716.png' },
         url: {
           type: 'string',
-          example: 'http://localhost:3000/uploads/temp/temp-1715967000-4716.png',
+          example:
+            'http://localhost:3000/uploads/temp/temp-1715967000-4716.png',
         },
       },
     },
