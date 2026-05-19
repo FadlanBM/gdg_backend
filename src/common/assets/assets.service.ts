@@ -64,7 +64,9 @@ export class AssetsService {
       try {
         fs.mkdirSync(destDir, { recursive: true });
       } catch (err) {
-        this.logger.warn(`Could not create permanent folder ${destDir}: ${err.message}`);
+        this.logger.warn(
+          `Could not create permanent folder ${destDir}: ${err.message}`,
+        );
       }
     }
 

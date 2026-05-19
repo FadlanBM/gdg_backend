@@ -1,4 +1,10 @@
-import { Controller, Post, Body, UnauthorizedException, UsePipes } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UnauthorizedException,
+  UsePipes,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto, loginSchema } from './dto/login.dto';
@@ -38,7 +44,10 @@ export class AuthController {
   @Post('google')
   @UsePipes(new ZodValidationPipe(googleLoginSchema))
   @ApiOperation({ summary: 'User login/registration via Google OAuth payload' })
-  @ApiResponse({ status: 201, description: 'User successfully logged in/registered via Google.' })
+  @ApiResponse({
+    status: 201,
+    description: 'User successfully logged in/registered via Google.',
+  })
   async googleLogin(@Body() googleLoginDto: GoogleLoginDto) {
     return this.authService.googleLogin(googleLoginDto);
   }
