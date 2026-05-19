@@ -14,6 +14,7 @@ export class UsersService {
         id: schema.users.id,
         email: schema.users.email,
         password: schema.users.password,
+        googleId: schema.users.googleId,
         roleId: schema.users.roleId,
         createdAt: schema.users.createdAt,
         role: schema.roles.name,
@@ -21,6 +22,24 @@ export class UsersService {
       .from(schema.users)
       .leftJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
       .where(eq(schema.users.email, email));
+
+    return results[0];
+  }
+
+  async findOneByGoogleId(googleId: string) {
+    const results = await this.db
+      .select({
+        id: schema.users.id,
+        email: schema.users.email,
+        password: schema.users.password,
+        googleId: schema.users.googleId,
+        roleId: schema.users.roleId,
+        createdAt: schema.users.createdAt,
+        role: schema.roles.name,
+      })
+      .from(schema.users)
+      .leftJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
+      .where(eq(schema.users.googleId, googleId));
 
     return results[0];
   }
@@ -67,6 +86,15 @@ export class UsersService {
       .leftJoin(schema.profiles, eq(schema.users.id, schema.profiles.userId))
       .where(eq(schema.users.id, userId));
 
+    return results[0];
+  }
+
+  async updateGoogleId(userId: string, googleId: string) {
+    const results = await this.db
+      .update(schema.users)
+      .set({ googleId })
+      .where(eq(schema.users.id, userId))
+      .returning();
     return results[0];
   }
 }

@@ -46,7 +46,8 @@ export const roles = pgTable('roles', {
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: varchar('email', { length: 255 }).unique().notNull(),
-  password: varchar('password', { length: 255 }).notNull(),
+  password: varchar('password', { length: 255 }), // nullable to support OAuth / Google Auth users
+  googleId: varchar('google_id', { length: 255 }).unique(), // store google identity payload
   roleId: uuid('role_id')
     .references(() => roles.id)
     .notNull(),
