@@ -11,6 +11,10 @@ export const registerSchema = z.object({
   nomorTelepon: z.string().optional(),
   alamatLengkap: z.string().optional(),
   fotoProfil: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  formattedAddress: z.string().optional(),
+  googlePlaceId: z.string().optional(),
 });
 
 export class RegisterDto {
@@ -50,4 +54,32 @@ export class RegisterDto {
     required: false,
   })
   fotoProfil?: string;
+
+  @ApiProperty({
+    example: -7.797068,
+    description: 'Latitude coordinate from Google Maps',
+    required: false,
+  })
+  latitude?: number;
+
+  @ApiProperty({
+    example: 110.370529,
+    description: 'Longitude coordinate from Google Maps',
+    required: false,
+  })
+  longitude?: number;
+
+  @ApiProperty({
+    example: 'Jl. Malioboro No. 12, Yogyakarta',
+    description: 'Formatted address string returned from Google Maps',
+    required: false,
+  })
+  formattedAddress?: string;
+
+  @ApiProperty({
+    example: 'ChIJz2x03FpYei4R1...',
+    description: 'Google Place ID from Google Maps response',
+    required: false,
+  })
+  googlePlaceId?: string;
 }

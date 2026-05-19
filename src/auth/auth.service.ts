@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 import { UsersService } from '../users/users.service';
 import { AssetsService } from '../common/assets/assets.service';
 
@@ -25,7 +26,7 @@ export class AuthService {
     pass: string,
   ): Promise<ValidatedUser | null> {
     const user = await this.usersService.findOneByEmail(email);
-    if (user && (await bcrypt.compare(pass, user.password))) {
+    if (user && user.password && (await bcrypt.compare(pass, user.password))) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...result } = user;
       return result;
@@ -48,6 +49,10 @@ export class AuthService {
     nomorTelepon?: string;
     alamatLengkap?: string;
     fotoProfil?: string;
+    latitude?: number;
+    longitude?: number;
+    formattedAddress?: string;
+    googlePlaceId?: string;
   }) {
     const {
       email,
@@ -57,6 +62,10 @@ export class AuthService {
       nomorTelepon,
       alamatLengkap,
       fotoProfil,
+      latitude,
+      longitude,
+      formattedAddress,
+      googlePlaceId,
     } = data;
 
     // Check if user already exists
@@ -98,9 +107,109 @@ export class AuthService {
       fotoProfil: uploadedFotoUrl,
     });
 
+    if (latitude !== undefined && longitude !== undefined) {
+      await this.usersService.createLocation({
+        userId: user.id,
+        latitude: latitude.toString(),
+        longitude: longitude.toString(),
+        formattedAddress,
+        googlePlaceId,
+      });
+    }
+
     return {
       ...user,
       role,
     };
+  }
+
+  private googleClient = new OAuth2Client();
+
+  async verifyGoogleToken(idToken: string) {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+      });
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new BadRequestException('Invalid Google ID Token payload');
+      }
+      return {
+        googleId: payload.sub,
+        email: payload.email!,
+        namaLengkap: payload.name || payload.given_name || 'Google User',
+        fotoProfil: payload.picture,
+      };
+    } catch (error) {
+      throw new BadRequestException('Token Google tidak valid atau kedaluwarsa');
+    }
+  }
+
+  async googleLogin(data: {
+    idToken: string;
+    role?: 'petani' | 'pembeli';
+  }) {
+    const { idToken, role = 'pembeli' } = data;
+
+    // Verify and decode the google idToken securely
+    const verifiedPayload = await this.verifyGoogleToken(idToken);
+    const { email, googleId, namaLengkap, fotoProfil } = verifiedPayload;
+
+    // 1. Check if user already exists by googleId
+    const user = await this.usersService.findOneByGoogleId(googleId);
+
+    if (user) {
+      return this.login({
+        id: user.id,
+        email: user.email,
+        roleId: user.roleId,
+        createdAt: user.createdAt,
+        role: user.role,
+      });
+    }
+
+    // 2. Check if user already exists by email (but googleId is not linked yet)
+    const existingUser = await this.usersService.findOneByEmail(email);
+    if (existingUser) {
+      // Link the account to googleId
+      await this.usersService.updateGoogleId(existingUser.id, googleId);
+      
+      return this.login({
+        id: existingUser.id,
+        email: existingUser.email,
+        roleId: existingUser.roleId,
+        createdAt: existingUser.createdAt,
+        role: existingUser.role,
+      });
+    }
+
+    // 3. User does not exist, so register automatically
+    const roleRecord = await this.usersService.findRoleByName(role);
+    if (!roleRecord) {
+      throw new BadRequestException(`Role '${role}' not found`);
+    }
+
+    // Register user record (without password since they use OAuth)
+    const newUser = await this.usersService.create({
+      email,
+      googleId,
+      roleId: roleRecord.id,
+    });
+
+    // Create profile
+    await this.usersService.createProfile({
+      userId: newUser.id,
+      namaLengkap,
+      fotoProfil,
+    });
+
+    // Login and return access token
+    return this.login({
+      id: newUser.id,
+      email: newUser.email,
+      roleId: newUser.roleId,
+      createdAt: newUser.createdAt,
+      role,
+    });
   }
 }
