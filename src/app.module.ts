@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
 import { CartModule } from './cart/cart.module';
+import { CategoriesModule } from './categories/categories.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { AiModule } from './common/ai/ai.module';
 import { AssetsModule } from './common/assets/assets.module';
@@ -22,6 +23,7 @@ import configuration from './config/configuration';
     UsersModule,
     ProductsModule,
     CartModule,
+    CategoriesModule,
     TransactionsModule,
     AiModule,
     AssetsModule,

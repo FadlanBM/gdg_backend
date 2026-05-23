@@ -13,11 +13,6 @@ import {
 import { relations } from 'drizzle-orm';
 
 // Enums
-export const productKategoriEnum = pgEnum('kategori', [
-  'sayur',
-  'buah',
-  'benih',
-]);
 export const productStatusEnum = pgEnum('status', [
   'pending',
   'active',
@@ -96,15 +91,24 @@ export const assets = pgTable('assets', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// 3. Tabel Products
+// 3. Tabel Categories
+export const categories = pgTable('categories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  nama: varchar('nama', { length: 255 }).unique().notNull(),
+  deskripsi: text('deskripsi'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// 4. Tabel Products
 export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
   petaniId: uuid('petani_id').references(() => users.id, {
     onDelete: 'cascade',
   }),
   namaProduk: varchar('nama_produk', { length: 255 }).notNull(),
-  kategori: productKategoriEnum('kategori').notNull(),
   deskripsi: text('deskripsi'),
+  harga: decimal('harga', { precision: 12, scale: 2 }),
+  tipeStok: varchar('tipe_stok', { length: 50 }).default('kg'),
   stok: integer('stok').default(0),
   fotoUrl: varchar('foto_url', { length: 500 }),
   status: productStatusEnum('status').default('pending'),
@@ -189,6 +193,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 
 export const rolesRelations = relations(roles, ({ many }) => ({
   users: many(users),
+}));
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  products: many(products),
 }));
 
 export const profilesRelations = relations(profiles, ({ one }) => ({

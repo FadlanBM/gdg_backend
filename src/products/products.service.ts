@@ -45,13 +45,8 @@ export class ProductsService {
     return results[0];
   }
 
-  async findAll(kategori?: string) {
-    const query = this.db.select().from(schema.products);
-    if (kategori) {
-      // @ts-ignore
-      query.where(eq(schema.products.kategori, kategori));
-    }
-    return query;
+  async findAll() {
+    return this.db.select().from(schema.products);
   }
 
   async findOne(id: string) {
@@ -72,7 +67,7 @@ export class ProductsService {
     const analysisResult = await this.aiService.analyzeProduct({
       nama: product.namaProduk,
       deskripsi: product.deskripsi || '',
-      kategori: product.kategori,
+      kategori: '',
     });
 
     const analysis = await this.db
