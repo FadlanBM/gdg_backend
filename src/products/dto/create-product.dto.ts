@@ -1,15 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Tomat Organik', description: 'Nama produk' })
   namaProduk: string;
-
-  @ApiProperty({
-    example: 'sayur',
-    enum: ['sayur', 'buah', 'benih'],
-    description: 'Kategori produk',
-  })
-  kategori: 'sayur' | 'buah' | 'benih';
 
   @ApiProperty({
     example: 'Tomat segar pilihan dari petani lokal',
@@ -17,7 +10,17 @@ export class CreateProductDto {
   })
   deskripsi: string;
 
-  @ApiProperty({ example: 100, description: 'Stok produk (kg/unit)' })
+  @ApiPropertyOptional({ example: 15000, description: 'Harga produk (Rupiah)' })
+  harga?: string;
+
+  @ApiPropertyOptional({
+    example: 'kg',
+    description: 'Tipe stok (kg, gram, liter, unit, dll)',
+    default: 'kg',
+  })
+  tipeStok?: string;
+
+  @ApiProperty({ example: 100, description: 'Stok produk' })
   stok: number;
 
   @ApiProperty({

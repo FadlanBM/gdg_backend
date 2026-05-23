@@ -7,7 +7,6 @@ import {
   Param,
   UseGuards,
   Request,
-  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
@@ -33,8 +32,8 @@ export class ProductsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all products (Katalog)' })
-  findAll(@Query('kategori') kategori?: string) {
-    return this.productsService.findAll(kategori);
+  findAll() {
+    return this.productsService.findAll();
   }
 
   @Get(':id')
