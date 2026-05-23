@@ -10,6 +10,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { AiModule } from './common/ai/ai.module';
 import { AssetsModule } from './common/assets/assets.module';
+import { HargapanganModule } from './hargapangan/hargapangan.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -27,6 +28,7 @@ import configuration from './config/configuration';
     TransactionsModule,
     AiModule,
     AssetsModule,
+    HargapanganModule,
   ],
   controllers: [AppController],
   providers: [AppService],
