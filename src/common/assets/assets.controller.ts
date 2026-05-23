@@ -51,7 +51,7 @@ export class AssetsController {
         url: {
           type: 'string',
           example:
-            'http://localhost:3000/uploads/temp/temp-1715967000-4716.png',
+            `${process.env.BASE_API || 'http://localhost:3000'}/uploads/temp/temp-1715967000-4716.png`,
         },
       },
     },

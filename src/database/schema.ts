@@ -106,11 +106,13 @@ export const products = pgTable('products', {
     onDelete: 'cascade',
   }),
   namaProduk: varchar('nama_produk', { length: 255 }).notNull(),
+  kategoriId: uuid('kategori_id')
+    .references(() => categories.id, { onDelete: 'set null' }),
   deskripsi: text('deskripsi'),
   harga: decimal('harga', { precision: 12, scale: 2 }),
   tipeStok: varchar('tipe_stok', { length: 50 }).default('kg'),
   stok: integer('stok').default(0),
-  fotoUrl: varchar('foto_url', { length: 500 }),
+  fotoUrl: text('foto_url').array(),
   status: productStatusEnum('status').default('pending'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -217,6 +219,10 @@ export const productsRelations = relations(products, ({ one, many }) => ({
   petani: one(users, {
     fields: [products.petaniId],
     references: [users.id],
+  }),
+  kategori: one(categories, {
+    fields: [products.kategoriId],
+    references: [categories.id],
   }),
   aiAnalysis: one(aiAnalysis, {
     fields: [products.id],

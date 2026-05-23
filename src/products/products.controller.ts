@@ -36,10 +36,12 @@ export class ProductsController {
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('kategoriId') kategoriId?: string,
   ) {
     return this.productsService.findAll(
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 10,
+      kategoriId,
     );
   }
 

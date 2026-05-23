@@ -16,4 +16,8 @@ export default () => ({
     key: process.env.SUPABASE_KEY,
     bucket: process.env.SUPABASE_BUCKET || 'assets',
   },
+  hargaPangan: {
+    url: process.env.HARGA_PANGAN_URL,
+  },
+  baseApi: process.env.BASE_API || 'http://localhost:3000',
 });

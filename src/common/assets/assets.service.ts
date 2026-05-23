@@ -19,12 +19,7 @@ export class AssetsService {
   ) {}
 
   private getBaseUrl(): string {
-    const port = this.configService.get<number>('port') || 3000;
-    const appUrl = process.env.APP_URL;
-    if (appUrl) {
-      return appUrl.endsWith('/') ? appUrl.slice(0, -1) : appUrl;
-    }
-    return `http://localhost:${port}`;
+    return this.configService.get<string>('baseApi', 'http://localhost:3000').replace(/\/$/, '');
   }
 
   /**

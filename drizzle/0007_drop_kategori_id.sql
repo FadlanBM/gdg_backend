@@ -1,3 +1,1 @@
-ALTER TABLE "products" DROP CONSTRAINT "products_kategori_id_categories_id_fk";
---> statement-breakpoint
-ALTER TABLE "products" DROP COLUMN "kategori_id";
+ALTER TABLE "products" ALTER COLUMN "foto_url" TYPE text[] USING ARRAY["foto_url"];
