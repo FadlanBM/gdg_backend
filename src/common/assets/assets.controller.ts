@@ -82,13 +82,7 @@ export class AssetsController {
       throw new BadRequestException('No file uploaded');
     }
 
-    const port = this.configService.get<number>('port') || 3000;
-    const appUrl = process.env.APP_URL;
-    const baseUrl = appUrl
-      ? appUrl.endsWith('/')
-        ? appUrl.slice(0, -1)
-        : appUrl
-      : `http://localhost:${port}`;
+    const baseUrl = this.configService.get<string>('baseApi', 'http://localhost:3000').replace(/\/$/, '');
 
     const fileUrl = `${baseUrl}/uploads/temp/${file.filename}`;
 
