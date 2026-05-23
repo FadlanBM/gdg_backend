@@ -19,4 +19,5 @@ export default () => ({
   hargaPangan: {
     url: process.env.HARGA_PANGAN_URL,
   },
+  baseApi: process.env.BASE_API || 'http://localhost:3000',
 });

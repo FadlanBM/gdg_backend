@@ -4,6 +4,12 @@ export class CreateProductDto {
   @ApiProperty({ example: 'Tomat Organik', description: 'Nama produk' })
   namaProduk: string;
 
+  @ApiPropertyOptional({
+    example: 'uuid-kategori-id',
+    description: 'ID kategori (foreign key ke tabel categories)',
+  })
+  kategoriId?: string;
+
   @ApiProperty({
     example: 'Tomat segar pilihan dari petani lokal',
     description: 'Deskripsi produk',
@@ -24,8 +30,9 @@ export class CreateProductDto {
   stok: number;
 
   @ApiProperty({
-    example: 'https://example.com/tomat.jpg',
-    description: 'URL foto produk',
+    example: ['https://example.com/tomat.jpg', 'https://example.com/tomat2.jpg'],
+    description: 'URL foto produk (bisa multiple)',
+    type: [String],
   })
-  fotoUrl: string;
+  fotoUrl: string[];
 }

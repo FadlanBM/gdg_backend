@@ -7,7 +7,7 @@ import {
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { CreateProductDto } from './dto/create-product.dto';
 import { AiService } from '../common/ai/ai.service';
 import { AssetsService } from '../common/assets/assets.service';
@@ -22,15 +22,23 @@ export class ProductsService {
 
   async create(petaniId: string, dto: CreateProductDto) {
     let fotoUrl = dto.fotoUrl;
-    if (fotoUrl && fotoUrl.includes('/uploads/temp/')) {
-      try {
-        fotoUrl = await this.assetsService.moveFileToPermanent(
-          fotoUrl,
-          'products',
-        );
-      } catch (err) {
-        console.error('Failed to move product asset:', err);
-      }
+    if (fotoUrl && fotoUrl.length > 0) {
+      fotoUrl = await Promise.all(
+        fotoUrl.map(async (url) => {
+          if (url.includes('/uploads/temp/')) {
+            try {
+              return await this.assetsService.moveFileToPermanent(
+                url,
+                'products',
+              );
+            } catch (err) {
+              console.error('Failed to move product asset:', err);
+              return url;
+            }
+          }
+          return url;
+        }),
+      );
     }
 
     const results = await this.db
@@ -45,18 +53,22 @@ export class ProductsService {
     return results[0];
   }
 
-  async findAll(page: number = 1, limit: number = 10) {
+  async findAll(page: number = 1, limit: number = 10, kategoriId?: string) {
     const offset = (page - 1) * limit;
 
+    const baseQuery = this.db.select().from(schema.products);
+    const countQuery = this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.products);
+
+    if (kategoriId) {
+      baseQuery.where(eq(schema.products.kategoriId, kategoriId));
+      countQuery.where(eq(schema.products.kategoriId, kategoriId));
+    }
+
     const [data, totalResult] = await Promise.all([
-      this.db
-        .select()
-        .from(schema.products)
-        .limit(limit)
-        .offset(offset),
-      this.db
-        .select({ count: sql<number>`count(*)` })
-        .from(schema.products),
+      baseQuery.limit(limit).offset(offset),
+      countQuery,
     ]);
 
     const total = Number(totalResult[0].count);
@@ -87,10 +99,19 @@ export class ProductsService {
   async analyze(id: string) {
     const product = await this.findOne(id);
 
+    let kategoriName = '';
+    if (product.kategoriId) {
+      const cat = await this.db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.id, product.kategoriId));
+      if (cat.length > 0) kategoriName = cat[0].nama;
+    }
+
     const analysisResult = await this.aiService.analyzeProduct({
       nama: product.namaProduk,
       deskripsi: product.deskripsi || '',
-      kategori: '',
+      kategori: kategoriName,
     });
 
     const analysis = await this.db
