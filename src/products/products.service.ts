@@ -7,7 +7,7 @@ import {
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { CreateProductDto } from './dto/create-product.dto';
 import { AiService } from '../common/ai/ai.service';
 import { AssetsService } from '../common/assets/assets.service';
@@ -45,8 +45,31 @@ export class ProductsService {
     return results[0];
   }
 
-  async findAll() {
-    return this.db.select().from(schema.products);
+  async findAll(page: number = 1, limit: number = 10) {
+    const offset = (page - 1) * limit;
+
+    const [data, totalResult] = await Promise.all([
+      this.db
+        .select()
+        .from(schema.products)
+        .limit(limit)
+        .offset(offset),
+      this.db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.products),
+    ]);
+
+    const total = Number(totalResult[0].count);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string) {
