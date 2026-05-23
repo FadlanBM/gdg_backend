@@ -52,7 +52,7 @@ export class AuthService {
     namaLengkap: string;
     nomorTelepon?: string;
     alamatLengkap?: string;
-    fotoProfil?: string;
+    fotoProfil?: Express.Multer.File;
     latitude?: number;
     longitude?: number;
     formattedAddress?: string;
@@ -72,7 +72,6 @@ export class AuthService {
       googlePlaceId,
     } = data;
 
-    // Check if user already exists
     const existingUser = await this.usersService.findOneByEmail(email);
     if (existingUser) {
       throw new ConflictException('User already exists');
@@ -88,12 +87,9 @@ export class AuthService {
     let uploadedFotoUrl: string | undefined = undefined;
     if (fotoProfil) {
       try {
-        uploadedFotoUrl = await this.assetsService.uploadToSupabase(
-          fotoProfil,
-          'avatars',
-        );
+        uploadedFotoUrl = await this.assetsService.saveFile(fotoProfil, 'avatars');
       } catch (err) {
-        console.error('Failed to upload profile photo to Supabase:', err);
+        console.error('Failed to upload profile photo:', err);
       }
     }
 
@@ -124,6 +120,7 @@ export class AuthService {
     return {
       ...user,
       role,
+      fotoProfil: uploadedFotoUrl,
     };
   }
 

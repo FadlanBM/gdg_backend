@@ -10,9 +10,8 @@ export const registerSchema = z.object({
   namaLengkap: z.string().min(1, 'Nama lengkap harus diisi'),
   nomorTelepon: z.string().optional(),
   alamatLengkap: z.string().optional(),
-  fotoProfil: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  latitude: z.coerce.number().optional(),
+  longitude: z.coerce.number().optional(),
   formattedAddress: z.string().optional(),
   googlePlaceId: z.string().optional(),
 });
@@ -47,13 +46,6 @@ export class RegisterDto {
     required: false,
   })
   alamatLengkap?: string;
-
-  @ApiProperty({
-    example: 'temp-1715967000-4716.png',
-    description: 'File name of the uploaded temporary avatar/profile photo',
-    required: false,
-  })
-  fotoProfil?: string;
 
   @ApiProperty({
     example: -7.797068,

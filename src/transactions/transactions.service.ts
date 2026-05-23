@@ -149,7 +149,7 @@ export class TransactionsService {
   async submitPaymentProof(
     id: string,
     pembeliId: string,
-    buktiBayarUrl: string,
+    file?: Express.Multer.File,
   ) {
     const transaction = await this.findOne(id);
 
@@ -157,23 +157,16 @@ export class TransactionsService {
       throw new BadRequestException('You do not own this transaction');
     }
 
-    let permanentUrl = buktiBayarUrl;
-    if (buktiBayarUrl && buktiBayarUrl.includes('/uploads/temp/')) {
-      try {
-        permanentUrl = await this.assetsService.moveFileToPermanent(
-          buktiBayarUrl,
-          'transactions',
-        );
-      } catch (err) {
-        console.error('Failed to move payment asset:', err);
-      }
+    let buktiBayarUrl = transaction.buktiBayarUrl;
+    if (file) {
+      buktiBayarUrl = await this.assetsService.saveFile(file, 'transactions');
     }
 
     const results = await this.db
       .update(schema.transactions)
       .set({
-        buktiBayarUrl: permanentUrl,
-        statusPembayaran: 'berhasil',
+        buktiBayarUrl,
+        statusPembayaran: file ? 'berhasil' : transaction.statusPembayaran,
       })
       .where(eq(schema.transactions.id, id))
       .returning();
