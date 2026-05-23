@@ -7,12 +7,20 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
   Request,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { ProductsService } from './products.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/guards/roles.decorator';
@@ -26,9 +34,34 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('petani')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new product (Petani only)' })
-  create(@Request() req, @Body() createProductDto: CreateProductDto) {
-    return this.productsService.create(req.user.userId, createProductDto);
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['namaProduk', 'deskripsi', 'stok'],
+      properties: {
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'File gambar produk (bisa multiple)',
+        },
+        namaProduk: { type: 'string', example: 'Tomat Organik' },
+        kategoriId: { type: 'string', example: 'uuid-kategori' },
+        deskripsi: { type: 'string', example: 'Tomat segar' },
+        harga: { type: 'number', example: 15000 },
+        tipeStok: { type: 'string', example: 'kg' },
+        stok: { type: 'integer', example: 100 },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Create a new product with images (Petani only)' })
+  @UseInterceptors(FilesInterceptor('files', 10, { storage: memoryStorage() }))
+  create(
+    @Request() req,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body() body: any,
+  ) {
+    return this.productsService.create(req.user.userId, body, files || []);
   }
 
   @Get()
@@ -39,8 +72,8 @@ export class ProductsController {
     @Query('kategoriId') kategoriId?: string,
   ) {
     return this.productsService.findAll(
-      page ? parseInt(page, 10) : 1,
-      limit ? parseInt(limit, 10) : 10,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 10,
       kategoriId,
     );
   }
@@ -67,8 +100,8 @@ export class ProductsController {
   @ApiOperation({ summary: 'Update product status (Petani only)' })
   updateStatus(
     @Param('id') id: string,
-    @Body() updateStatusDto: UpdateProductStatusDto,
+    @Body('status') status: 'active' | 'non-active',
   ) {
-    return this.productsService.updateStatus(id, updateStatusDto.status);
+    return this.productsService.updateStatus(id, status);
   }
 }

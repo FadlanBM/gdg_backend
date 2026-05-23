@@ -7,44 +7,38 @@ import {
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
-import { eq, and, sql } from 'drizzle-orm';
-import { CreateProductDto } from './dto/create-product.dto';
-import { AiService } from '../common/ai/ai.service';
+import { eq, sql } from 'drizzle-orm';
 import { AssetsService } from '../common/assets/assets.service';
+import { AiService } from '../common/ai/ai.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
-    private aiService: AiService,
     private assetsService: AssetsService,
+    private aiService: AiService,
   ) {}
 
-  async create(petaniId: string, dto: CreateProductDto) {
-    let fotoUrl = dto.fotoUrl;
-    if (fotoUrl && fotoUrl.length > 0) {
-      fotoUrl = await Promise.all(
-        fotoUrl.map(async (url) => {
-          if (url.includes('/uploads/temp/')) {
-            try {
-              return await this.assetsService.moveFileToPermanent(
-                url,
-                'products',
-              );
-            } catch (err) {
-              console.error('Failed to move product asset:', err);
-              return url;
-            }
-          }
-          return url;
-        }),
-      );
-    }
+  async create(
+    petaniId: string,
+    body: any,
+    files: Express.Multer.File[],
+  ) {
+    const fotoUrl = files.length > 0
+      ? await Promise.all(
+          files.map((file) => this.assetsService.saveFile(file, 'products')),
+        )
+      : [];
 
     const results = await this.db
       .insert(schema.products)
       .values({
-        ...dto,
+        namaProduk: body.namaProduk,
+        kategoriId: body.kategoriId || null,
+        deskripsi: body.deskripsi,
+        harga: body.harga ? String(body.harga) : null,
+        tipeStok: body.tipeStok || 'kg',
+        stok: body.stok ? Number(body.stok) : 0,
         fotoUrl,
         petaniId,
         status: 'pending',
@@ -134,7 +128,6 @@ export class ProductsService {
       })
       .returning();
 
-    // Update product status to active after analysis
     await this.db
       .update(schema.products)
       .set({ status: 'active' })

@@ -25,6 +25,77 @@ export class AssetsService {
   /**
    * Extracts filename from URL or path
    */
+  async saveFile(
+    file: Express.Multer.File,
+    subFolder: string,
+  ): Promise<string> {
+    const ext = extname(file.originalname);
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    const folder = subFolder === 'products' ? 'product' : subFolder === 'transactions' ? 'payment_proof' : 'avatars';
+
+    const supabaseUrl = this.configService.get<string>('supabase.url');
+    const supabaseKey = this.configService.get<string>('supabase.key');
+    const bucket = this.configService.get<string>('supabase.bucket') || 'assets';
+
+    if (supabaseUrl && supabaseKey && supabaseKey !== 'your_supabase_anon_or_service_role_key') {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        let contentType = 'application/octet-stream';
+        if (['.jpg', '.jpeg'].includes(ext)) contentType = 'image/jpeg';
+        else if (ext === '.png') contentType = 'image/png';
+        else if (ext === '.gif') contentType = 'image/gif';
+        else if (ext === '.webp') contentType = 'image/webp';
+
+        const { error } = await supabase.storage
+          .from(bucket)
+          .upload(`${folder}/${fileName}`, file.buffer, {
+            contentType,
+            upsert: true,
+          });
+
+        if (!error) {
+          const { data: urlData } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(`${folder}/${fileName}`);
+
+          await this.recordAssetInDb({
+            name: fileName,
+            url: urlData.publicUrl,
+            mimeType: file.mimetype,
+            size: file.size,
+            type: folder,
+          });
+
+          return urlData.publicUrl;
+        }
+      } catch (err) {
+        this.logger.error(`Supabase upload failed: ${err.message}. Falling back to local.`);
+      }
+    }
+
+    const destDir = process.env.VERCEL === '1'
+      ? join('/tmp', subFolder)
+      : join(this.uploadsRoot, subFolder);
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+
+    const destPath = join(destDir, fileName);
+    fs.writeFileSync(destPath, file.buffer);
+    const url = `${this.getBaseUrl()}/uploads/${subFolder}/${fileName}`;
+
+    await this.recordAssetInDb({
+      name: fileName,
+      url,
+      mimeType: file.mimetype,
+      size: file.size,
+      type: folder,
+    });
+
+    return url;
+  }
+
   private extractFileName(urlOrName: string): string {
     if (!urlOrName) return '';
     if (urlOrName.includes('/')) {

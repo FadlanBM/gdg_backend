@@ -6,12 +6,21 @@ import {
   Patch,
   Param,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   Request,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { CheckoutDto } from './dto/checkout.dto';
-import { SubmitPaymentDto } from './dto/submit-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/guards/roles.decorator';
@@ -54,16 +63,30 @@ export class TransactionsController {
 
   @Patch(':id/payment')
   @Roles('pembeli')
-  @ApiOperation({ summary: 'Submit payment proof (Pembeli only)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'File bukti pembayaran',
+        },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Submit payment proof with file (Pembeli only)' })
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   submitPayment(
     @Param('id') id: string,
     @Request() req,
-    @Body() dto: SubmitPaymentDto,
+    @UploadedFile() file: Express.Multer.File,
   ) {
     return this.transactionsService.submitPaymentProof(
       id,
       req.user.userId,
-      dto.buktiBayarUrl,
+      file,
     );
   }
 }
