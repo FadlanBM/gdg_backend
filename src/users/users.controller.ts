@@ -7,6 +7,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Request,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -38,6 +39,20 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async getMe(@Request() req) {
     return this.usersService.findProfileByUserId(req.user.userId);
+  }
+
+  @Get('petani')
+  @ApiOperation({ summary: 'Get all users with role petani' })
+  @ApiResponse({ status: 200, description: 'List of petani users.' })
+  async getPetani(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.findByRole(
+      'petani',
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 10,
+    );
   }
 
   @Patch('me')

@@ -117,10 +117,19 @@ export class AuthService {
       });
     }
 
+    const token = this.login({
+      id: user.id,
+      email: user.email,
+      roleId: roleRecord.id,
+      createdAt: user.createdAt,
+      role,
+    });
+
     return {
       ...user,
       role,
       fotoProfil: uploadedFotoUrl,
+      ...token,
     };
   }
 
