@@ -24,6 +24,7 @@ export class AiService {
     nama: string;
     deskripsi: string;
     kategori: string;
+    marketPrices?: { commodity: string; price: number; denomination: string }[];
   }) {
     const parser = StructuredOutputParser.fromZodSchema(
       z.object({
@@ -38,6 +39,19 @@ export class AiService {
 
     const formatInstructions = parser.getFormatInstructions();
 
+    let marketInfo = '';
+    if (productInfo.marketPrices && productInfo.marketPrices.length > 0) {
+      marketInfo =
+        '\n\nCurrent market prices from Bank Indonesia (hargapangan):\n' +
+        productInfo.marketPrices
+          .map(
+            (p) =>
+              `- ${p.commodity}: Rp${p.price.toLocaleString('id-ID')}/${p.denomination}`,
+          )
+          .join('\n') +
+        '\n\nUse these market prices as reference to suggest a competitive price for the product.';
+    }
+
     try {
       const response = await this.chat.invoke([
         new SystemMessage(
@@ -48,7 +62,9 @@ export class AiService {
           `Analyze this product:\n` +
             `Name: ${productInfo.nama}\n` +
             `Description: ${productInfo.deskripsi}\n` +
-            `Category: ${productInfo.kategori}\n\n` +
+            `Category: ${productInfo.kategori}\n` +
+            marketInfo +
+            `\n\n` +
             formatInstructions,
         ),
       ]);
