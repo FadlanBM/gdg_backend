@@ -1,8 +1,9 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, ConflictException, NotFoundException } from '@nestjs/common';
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
 import { eq } from 'drizzle-orm';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -114,6 +115,102 @@ export class UsersService {
       .update(schema.users)
       .set({ googleId })
       .where(eq(schema.users.id, userId))
+      .returning();
+    return results[0];
+  }
+
+  async updateUser(userId: string, data: { email?: string; password?: string }) {
+    if (data.email) {
+      const existing = await this.findOneByEmail(data.email);
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('Email already in use');
+      }
+    }
+
+    const updateData: Record<string, any> = {};
+    if (data.email) updateData.email = data.email;
+    if (data.password) updateData.password = await bcrypt.hash(data.password, 10);
+
+    if (Object.keys(updateData).length === 0) return null;
+
+    const results = await this.db
+      .update(schema.users)
+      .set(updateData)
+      .where(eq(schema.users.id, userId))
+      .returning();
+    if (results.length === 0) throw new NotFoundException('User not found');
+    return results[0];
+  }
+
+  async updateProfile(
+    userId: string,
+    data: {
+      namaLengkap?: string;
+      nomorTelepon?: string;
+      alamatLengkap?: string;
+      fotoProfil?: string;
+    },
+  ) {
+    const existing = await this.db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.userId, userId));
+
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => v !== undefined),
+    );
+
+    if (existing.length > 0) {
+      if (Object.keys(cleanData).length === 0) return existing[0];
+      const results = await this.db
+        .update(schema.profiles)
+        .set({ ...cleanData, updatedAt: new Date() })
+        .where(eq(schema.profiles.userId, userId))
+        .returning();
+      return results[0];
+    }
+
+    if (!cleanData.namaLengkap) return null;
+
+    const results = await this.db
+      .insert(schema.profiles)
+      .values({ userId, namaLengkap: cleanData.namaLengkap as string, ...cleanData } as any)
+      .returning();
+    return results[0];
+  }
+
+  async upsertLocation(
+    userId: string,
+    data: {
+      latitude?: string;
+      longitude?: string;
+      formattedAddress?: string;
+      googlePlaceId?: string;
+    },
+  ) {
+    if (data.latitude === undefined && data.longitude === undefined) return null;
+
+    const existing = await this.db
+      .select()
+      .from(schema.userLocations)
+      .where(eq(schema.userLocations.userId, userId));
+
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => v !== undefined),
+    );
+
+    if (existing.length > 0) {
+      const results = await this.db
+        .update(schema.userLocations)
+        .set(cleanData)
+        .where(eq(schema.userLocations.userId, userId))
+        .returning();
+      return results[0];
+    }
+
+    const results = await this.db
+      .insert(schema.userLocations)
+      .values({ userId, ...cleanData } as any)
       .returning();
     return results[0];
   }

@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Query,
+  Delete,
   UseGuards,
   UseInterceptors,
   UploadedFiles,
@@ -19,6 +20,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -78,6 +80,26 @@ export class ProductsController {
     );
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('petani')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get my products (Petani only)' })
+  @ApiQuery({ name: 'status', required: false, enum: ['active', 'non-active', 'pending'] })
+  findMyProducts(
+    @Request() req,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: 'active' | 'non-active' | 'pending',
+  ) {
+    return this.productsService.findByPetani(
+      req.user.userId,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 10,
+      status,
+    );
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get product details' })
   findOne(@Param('id') id: string) {
@@ -93,11 +115,32 @@ export class ProductsController {
     return this.productsService.analyze(id);
   }
 
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('petani')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a product (Owner only)' })
+  remove(@Request() req, @Param('id') id: string) {
+    return this.productsService.remove(req.user.userId, id);
+  }
+
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('petani')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update product status (Petani only)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['active', 'non-active'],
+          example: 'active',
+        },
+      },
+    },
+  })
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: 'active' | 'non-active',

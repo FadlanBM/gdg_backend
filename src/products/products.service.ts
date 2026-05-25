@@ -1,22 +1,28 @@
 import {
   Injectable,
   Inject,
+  Logger,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, SQL } from 'drizzle-orm';
 import { AssetsService } from '../common/assets/assets.service';
 import { AiService } from '../common/ai/ai.service';
+import { HargapanganService } from '../hargapangan/hargapangan.service';
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
+
   constructor(
     @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
     private assetsService: AssetsService,
     private aiService: AiService,
+    private hargapanganService: HargapanganService,
   ) {}
 
   async create(
@@ -47,18 +53,70 @@ export class ProductsService {
     return results[0];
   }
 
-  async findAll(page: number = 1, limit: number = 10, kategoriId?: string) {
+  async findByPetani(
+    petaniId: string,
+    page: number = 1,
+    limit: number = 10,
+    status?: 'active' | 'non-active' | 'pending',
+  ) {
     const offset = (page - 1) * limit;
 
-    const baseQuery = this.db.select().from(schema.products);
+    const petaniCondition = eq(schema.products.petaniId, petaniId);
+
+    const conditions = [petaniCondition];
+
+    if (status) {
+      conditions.push(eq(schema.products.status, status));
+    }
+
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+    const baseQuery = this.db
+      .select()
+      .from(schema.products)
+      .where(whereClause);
+
     const countQuery = this.db
       .select({ count: sql<number>`count(*)` })
-      .from(schema.products);
+      .from(schema.products)
+      .where(whereClause);
+
+    const [data, totalResult] = await Promise.all([
+      baseQuery.limit(limit).offset(offset),
+      countQuery,
+    ]);
+
+    const total = Number(totalResult[0].count);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    kategoriId?: string,
+  ) {
+    const offset = (page - 1) * limit;
+
+    const conditions: SQL<unknown>[] = [eq(schema.products.status, 'active')];
 
     if (kategoriId) {
-      baseQuery.where(eq(schema.products.kategoriId, kategoriId));
-      countQuery.where(eq(schema.products.kategoriId, kategoriId));
+      conditions.push(eq(schema.products.kategoriId, kategoriId));
     }
+
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+    const baseQuery = this.db
+      .select()
+      .from(schema.products)
+      .where(whereClause);
+    const countQuery = this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.products)
+      .where(whereClause);
 
     const [data, totalResult] = await Promise.all([
       baseQuery.limit(limit).offset(offset),
@@ -102,10 +160,23 @@ export class ProductsService {
       if (cat.length > 0) kategoriName = cat[0].nama;
     }
 
+    let marketPrices: { commodity: string; price: number; denomination: string }[] | undefined = undefined;
+    try {
+      const pricesData = await this.hargapanganService.getPrices();
+      marketPrices = pricesData.prices.map((p) => ({
+        commodity: p.commodity,
+        price: p.nominal,
+        denomination: p.denomination,
+      }));
+    } catch (e) {
+      this.logger.warn('Failed to fetch hargapangan prices, proceeding without market data');
+    }
+
     const analysisResult = await this.aiService.analyzeProduct({
       nama: product.namaProduk,
       deskripsi: product.deskripsi || '',
       kategori: kategoriName,
+      marketPrices,
     });
 
     const analysis = await this.db
@@ -134,6 +205,17 @@ export class ProductsService {
       .where(eq(schema.products.id, id));
 
     return analysis[0];
+  }
+
+  async remove(petaniId: string, id: string) {
+    const product = await this.findOne(id);
+
+    if (product.petaniId !== petaniId) {
+      throw new ForbiddenException('You can only delete your own product');
+    }
+
+    await this.db.delete(schema.products).where(eq(schema.products.id, id));
+    return { message: 'Product deleted successfully' };
   }
 
   async updateStatus(id: string, status: 'active' | 'non-active') {
