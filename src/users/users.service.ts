@@ -2,7 +2,7 @@ import { Injectable, Inject, ConflictException, NotFoundException } from '@nestj
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -108,6 +108,57 @@ export class UsersService {
       .where(eq(schema.users.id, userId));
 
     return results[0];
+  }
+
+  async findByRole(roleName: string, page: number = 1, limit: number = 10) {
+    const offset = (page - 1) * limit;
+
+    const baseQuery = this.db
+      .select({
+        id: schema.users.id,
+        email: schema.users.email,
+        profile: {
+          id: schema.profiles.id,
+          namaLengkap: schema.profiles.namaLengkap,
+          nomorTelepon: schema.profiles.nomorTelepon,
+          alamatLengkap: schema.profiles.alamatLengkap,
+          titikLokasi: schema.profiles.titikLokasi,
+          fotoProfil: schema.profiles.fotoProfil,
+        },
+        location: {
+          id: schema.userLocations.id,
+          latitude: schema.userLocations.latitude,
+          longitude: schema.userLocations.longitude,
+          formattedAddress: schema.userLocations.formattedAddress,
+          googlePlaceId: schema.userLocations.googlePlaceId,
+        },
+      })
+      .from(schema.users)
+      .leftJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
+      .leftJoin(schema.profiles, eq(schema.users.id, schema.profiles.userId))
+      .leftJoin(
+        schema.userLocations,
+        eq(schema.users.id, schema.userLocations.userId),
+      )
+      .where(eq(schema.roles.name, roleName));
+
+    const countQuery = this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.users)
+      .leftJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
+      .where(eq(schema.roles.name, roleName));
+
+    const [data, totalResult] = await Promise.all([
+      baseQuery.limit(limit).offset(offset),
+      countQuery,
+    ]);
+
+    const total = Number(totalResult[0]?.count) || 0;
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async updateGoogleId(userId: string, googleId: string) {
