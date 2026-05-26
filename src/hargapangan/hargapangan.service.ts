@@ -29,7 +29,10 @@ export class HargapanganService {
   private readonly baseUrl: string;
 
   constructor(private configService: ConfigService) {
-    this.baseUrl = this.configService.get<string>('hargaPangan.url', 'https://www.bi.go.id/hargapangan');
+    this.baseUrl = this.configService.get<string>(
+      'hargaPangan.url',
+      'https://www.bi.go.id/hargapangan',
+    );
   }
 
   // List of 21 commodities tracked on the home page
@@ -91,7 +94,7 @@ export class HargapanganService {
         throw new Error(`HTTP Error: ${response.status}`);
       }
       const data = await response.json();
-      
+
       // Cache for 24 hours
       this.setToCache(cacheKey, data, 24 * 60 * 60 * 1000);
       return data;
@@ -114,9 +117,7 @@ export class HargapanganService {
 
     try {
       this.logger.log('Fetching market types list from BI...');
-      const response = await fetch(
-        `${this.baseUrl}/WebSite/Home/GetType`,
-      );
+      const response = await fetch(`${this.baseUrl}/WebSite/Home/GetType`);
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
@@ -137,7 +138,10 @@ export class HargapanganService {
   /**
    * Fetch real-time food prices by province and market type
    */
-  async getPrices(provinceId: number = 0, marketTypeId: number = 1): Promise<PricesResponse> {
+  async getPrices(
+    provinceId: number = 0,
+    marketTypeId: number = 1,
+  ): Promise<PricesResponse> {
     const cacheKey = `prices:${provinceId}:${marketTypeId}`;
     const cached = this.getFromCache<PricesResponse>(cacheKey);
     if (cached) {
@@ -146,15 +150,17 @@ export class HargapanganService {
     }
 
     try {
-      this.logger.log(`Initiating food prices scrape (provinceId: ${provinceId}, marketTypeId: ${marketTypeId})`);
-      
+      this.logger.log(
+        `Initiating food prices scrape (provinceId: ${provinceId}, marketTypeId: ${marketTypeId})`,
+      );
+
       // 1. Fetch home page to extract temp_id
       const homeRes = await fetch(`${this.baseUrl}/home/index`);
       if (!homeRes.ok) {
         throw new Error(`Failed to load home page: ${homeRes.statusText}`);
       }
       const html = await homeRes.text();
-      
+
       const tempIdMatch = html.match(/id="temp_id"[^>]*value="([^"]+)"/);
       if (!tempIdMatch) {
         throw new Error('Failed to parse temp_id from the BI home page HTML');
@@ -164,48 +170,59 @@ export class HargapanganService {
 
       // 2. If filtering by specific province or non-default market type, trigger the session update
       if (provinceId !== 0 || marketTypeId !== 1) {
-        this.logger.log(`Updating BI session chart data for provId: ${provinceId}, priceTypeId: ${marketTypeId}`);
+        this.logger.log(
+          `Updating BI session chart data for provId: ${provinceId}, priceTypeId: ${marketTypeId}`,
+        );
         const updateUrl = `${this.baseUrl}/WebSite/Home/UpdateChartData?tempId=${tempId}&provId=${provinceId}&priceTypeId=${marketTypeId}`;
         const updateRes = await fetch(updateUrl);
         if (!updateRes.ok) {
-          this.logger.warn(`Failed to update chart session data: ${updateRes.statusText}`);
+          this.logger.warn(
+            `Failed to update chart session data: ${updateRes.statusText}`,
+          );
         }
       }
 
       // 3. Fetch data for each commodity in parallel
-      const pricePromises = this.commodities.map(async (com): Promise<CommodityPrice> => {
-        try {
-          const dataUrl = `${this.baseUrl}/WebSite/Home/GetChartData?tempId=${tempId}&comName=${encodeURIComponent(com)}&forInfo=true`;
-          const dataRes = await fetch(dataUrl);
-          if (!dataRes.ok) {
-            throw new Error(`HTTP Error: ${dataRes.status}`);
-          }
-          const json = await dataRes.json();
-          const item = json.data?.[0];
+      const pricePromises = this.commodities.map(
+        async (com): Promise<CommodityPrice> => {
+          try {
+            const dataUrl = `${this.baseUrl}/WebSite/Home/GetChartData?tempId=${tempId}&comName=${encodeURIComponent(com)}&forInfo=true`;
+            const dataRes = await fetch(dataUrl);
+            if (!dataRes.ok) {
+              throw new Error(`HTTP Error: ${dataRes.status}`);
+            }
+            const json = await dataRes.json();
+            const item = json.data?.[0];
 
-          return {
-            commodity: com,
-            nominal: item?.nominal ?? 0,
-            change: item?.harga ?? 0,
-            changePercentage: item?.fluc ?? 0,
-            denomination: item?.denomination ?? 'kg',
-            date: item?.date ? new Date(item.date).toISOString().split('T')[0] : null,
-          };
-        } catch (err) {
-          this.logger.error(`Error fetching price for commodity [${com}]:`, err.message);
-          return {
-            commodity: com,
-            nominal: 0,
-            change: 0,
-            changePercentage: 0,
-            denomination: 'kg',
-            date: null,
-          };
-        }
-      });
+            return {
+              commodity: com,
+              nominal: item?.nominal ?? 0,
+              change: item?.harga ?? 0,
+              changePercentage: item?.fluc ?? 0,
+              denomination: item?.denomination ?? 'kg',
+              date: item?.date
+                ? new Date(item.date).toISOString().split('T')[0]
+                : null,
+            };
+          } catch (err) {
+            this.logger.error(
+              `Error fetching price for commodity [${com}]:`,
+              err.message,
+            );
+            return {
+              commodity: com,
+              nominal: 0,
+              change: 0,
+              changePercentage: 0,
+              denomination: 'kg',
+              date: null,
+            };
+          }
+        },
+      );
 
       const prices = await Promise.all(pricePromises);
-      
+
       const responseData: PricesResponse = {
         provinceId,
         marketTypeId,
@@ -215,7 +232,7 @@ export class HargapanganService {
 
       // Cache for 1 hour (3600000 ms)
       this.setToCache(cacheKey, responseData, 60 * 60 * 1000);
-      
+
       return responseData;
     } catch (error) {
       this.logger.error('Scraping food prices failed', error);

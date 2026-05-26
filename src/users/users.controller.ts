@@ -96,7 +96,10 @@ export class UsersController {
 
     let uploadedFotoUrl: string | undefined;
     if (fotoProfil) {
-      uploadedFotoUrl = await this.assetsService.saveFile(fotoProfil, 'avatars');
+      uploadedFotoUrl = await this.assetsService.saveFile(
+        fotoProfil,
+        'avatars',
+      );
     }
 
     await this.usersService.updateProfile(userId, {

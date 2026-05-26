@@ -19,7 +19,9 @@ export class AssetsService {
   ) {}
 
   private getBaseUrl(): string {
-    return this.configService.get<string>('baseApi', 'http://localhost:3000').replace(/\/$/, '');
+    return this.configService
+      .get<string>('baseApi', 'http://localhost:3000')
+      .replace(/\/$/, '');
   }
 
   /**
@@ -31,13 +33,23 @@ export class AssetsService {
   ): Promise<string> {
     const ext = extname(file.originalname);
     const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    const folder = subFolder === 'products' ? 'product' : subFolder === 'transactions' ? 'payment_proof' : 'avatars';
+    const folder =
+      subFolder === 'products'
+        ? 'product'
+        : subFolder === 'transactions'
+          ? 'payment_proof'
+          : 'avatars';
 
     const supabaseUrl = this.configService.get<string>('supabase.url');
     const supabaseKey = this.configService.get<string>('supabase.key');
-    const bucket = this.configService.get<string>('supabase.bucket') || 'assets';
+    const bucket =
+      this.configService.get<string>('supabase.bucket') || 'assets';
 
-    if (supabaseUrl && supabaseKey && supabaseKey !== 'your_supabase_anon_or_service_role_key') {
+    if (
+      supabaseUrl &&
+      supabaseKey &&
+      supabaseKey !== 'your_supabase_anon_or_service_role_key'
+    ) {
       try {
         const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -70,13 +82,16 @@ export class AssetsService {
           return urlData.publicUrl;
         }
       } catch (err) {
-        this.logger.error(`Supabase upload failed: ${err.message}. Falling back to local.`);
+        this.logger.error(
+          `Supabase upload failed: ${err.message}. Falling back to local.`,
+        );
       }
     }
 
-    const destDir = process.env.VERCEL === '1'
-      ? join('/tmp', subFolder)
-      : join(this.uploadsRoot, subFolder);
+    const destDir =
+      process.env.VERCEL === '1'
+        ? join('/tmp', subFolder)
+        : join(this.uploadsRoot, subFolder);
     if (!fs.existsSync(destDir)) {
       fs.mkdirSync(destDir, { recursive: true });
     }

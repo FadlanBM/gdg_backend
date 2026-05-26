@@ -1,4 +1,9 @@
-import { Injectable, Inject, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
@@ -170,7 +175,10 @@ export class UsersService {
     return results[0];
   }
 
-  async updateUser(userId: string, data: { email?: string; password?: string }) {
+  async updateUser(
+    userId: string,
+    data: { email?: string; password?: string },
+  ) {
     if (data.email) {
       const existing = await this.findOneByEmail(data.email);
       if (existing && existing.id !== userId) {
@@ -180,7 +188,8 @@ export class UsersService {
 
     const updateData: Record<string, any> = {};
     if (data.email) updateData.email = data.email;
-    if (data.password) updateData.password = await bcrypt.hash(data.password, 10);
+    if (data.password)
+      updateData.password = await bcrypt.hash(data.password, 10);
 
     if (Object.keys(updateData).length === 0) return null;
 
@@ -225,7 +234,11 @@ export class UsersService {
 
     const results = await this.db
       .insert(schema.profiles)
-      .values({ userId, namaLengkap: cleanData.namaLengkap as string, ...cleanData } as any)
+      .values({
+        userId,
+        namaLengkap: cleanData.namaLengkap,
+        ...cleanData,
+      } as any)
       .returning();
     return results[0];
   }
@@ -239,7 +252,8 @@ export class UsersService {
       googlePlaceId?: string;
     },
   ) {
-    if (data.latitude === undefined && data.longitude === undefined) return null;
+    if (data.latitude === undefined && data.longitude === undefined)
+      return null;
 
     const existing = await this.db
       .select()
