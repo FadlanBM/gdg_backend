@@ -98,6 +98,9 @@ export class ProductsService {
     page: number = 1,
     limit: number = 10,
     kategoriId?: string,
+    search?: string,
+    hargaMin?: number,
+    hargaMax?: number,
   ) {
     const offset = (page - 1) * limit;
 
@@ -105,6 +108,20 @@ export class ProductsService {
 
     if (kategoriId) {
       conditions.push(eq(schema.products.kategoriId, kategoriId));
+    }
+
+    if (search) {
+      conditions.push(
+        sql`(${schema.products.namaProduk} ILIKE ${`%${search}%`} OR ${schema.products.deskripsi} ILIKE ${`%${search}%`})`,
+      );
+    }
+
+    if (hargaMin !== undefined) {
+      conditions.push(sql`${schema.products.harga}::numeric >= ${hargaMin}`);
+    }
+
+    if (hargaMax !== undefined) {
+      conditions.push(sql`${schema.products.harga}::numeric <= ${hargaMax}`);
     }
 
     const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);

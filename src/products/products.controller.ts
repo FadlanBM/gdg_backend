@@ -68,15 +68,24 @@ export class ProductsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all products with pagination (Katalog)' })
+  @ApiQuery({ name: 'search', required: false, description: 'Search by product name or description' })
+  @ApiQuery({ name: 'hargaMin', required: false, description: 'Minimum price filter' })
+  @ApiQuery({ name: 'hargaMax', required: false, description: 'Maximum price filter' })
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('kategoriId') kategoriId?: string,
+    @Query('search') search?: string,
+    @Query('hargaMin') hargaMin?: string,
+    @Query('hargaMax') hargaMax?: string,
   ) {
     return this.productsService.findAll(
       page ? Number(page) : 1,
       limit ? Number(limit) : 10,
       kategoriId,
+      search,
+      hargaMin ? Number(hargaMin) : undefined,
+      hargaMax ? Number(hargaMax) : undefined,
     );
   }
 
