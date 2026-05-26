@@ -22,13 +22,19 @@ export class AiService {
 
   async generateDescription(params: {
     namaProduk: string;
-    imageUrl: string;
+    imageBase64: string;
     kategori: string;
   }) {
     const parser = StructuredOutputParser.fromZodSchema(
       z.object({
-        deskripsi: z.string().describe('Deskripsi produk yang menarik dan informatif dalam bahasa Indonesia'),
-        kataKunci: z.array(z.string()).describe('Kata kunci SEO untuk produk ini'),
+        deskripsi: z
+          .string()
+          .describe(
+            'Deskripsi produk yang menarik dan informatif dalam bahasa Indonesia',
+          ),
+        kataKunci: z
+          .array(z.string())
+          .describe('Kata kunci SEO untuk produk ini'),
       }),
     );
 
@@ -46,19 +52,29 @@ export class AiService {
     try {
       const response = await visionModel.invoke([
         new SystemMessage(
-          'Anda adalah asisten ahli pertanian dan pembuat konten produk di Indonesia. ' +
-          'Buatlah deskripsi produk yang menarik, informatif, dan meyakinkan berdasarkan gambar produk, nama, dan kategori yang diberikan. ' +
-          'Gunakan bahasa Indonesia yang baik dan benar.',
+          'Anda adalah asisten ahli pertanian dan pembuat konten produk e-commerce di Indonesia. ' +
+            'Tugas Anda adalah membuat deskripsi produk yang sangat lengkap, jelas, menarik, dan informatif berdasarkan nama produk, kategori, dan gambar yang diberikan.\n' +
+            'Deskripsi produk harus mencakup:\n' +
+            '1. Detail Karakteristik Fisik: Jelaskan tampilan produk di gambar secara detail (warna, tingkat kematangan/kesegaran, tekstur, bentuk/ukuran, kebersihan).\n' +
+            '2. Keunggulan & Kualitas: Sebutkan keunggulan produk (misal: organik, ditanam secara lokal, bebas pestisida, kualitas premium).\n' +
+            '3. Manfaat Kesehatan & Kandungan Gizi (jika relevan).\n' +
+            '4. Saran Penyimpanan & Penyajian: Berikan panduan cara menyimpan agar tetap segar dan cara mengonsumsinya.\n' +
+            'Gunakan bahasa Indonesia yang profesional, ramah, persuasif, terstruktur dengan paragraf/poin-poin, dan mudah dipahami oleh pembeli.',
         ),
         new HumanMessage({
           content: [
             {
               type: 'text',
-              text: `Buatkan deskripsi produk untuk:\nNama: ${params.namaProduk}\nKategori: ${params.kategori}\n\n${formatInstructions}`,
+              text:
+                `Buatkan deskripsi produk yang lengkap, terperinci, dan jelas untuk produk berikut:\n` +
+                `Nama Produk: ${params.namaProduk}\n` +
+                `Kategori: ${params.kategori}\n\n` +
+                `Pastikan deskripsi ditulis dengan struktur yang rapi (misalnya menggunakan poin-poin/bullet points untuk detail karakteristik dan manfaat agar mudah dibaca) dan tidak ada informasi penting yang terlewat.\n\n` +
+                `${formatInstructions}`,
             },
             {
               type: 'image_url',
-              image_url: { url: params.imageUrl },
+              image_url: { url: params.imageBase64 },
             },
           ],
         }),
@@ -87,7 +103,11 @@ export class AiService {
           .describe('Grade kualitas berdasarkan standar SNI'),
         skorKualitas: z.number().describe('Skor kualitas dari 0-100'),
         saranHarga: z.number().describe('Rekomendasi harga jual dalam Rupiah'),
-        alasan: z.string().describe('Alasan singkat pemberian grade'),
+        alasan: z
+          .string()
+          .describe(
+            'Alasan lengkap, rinci, dan jelas mengenai pemberian grade dan skor kualitas berdasarkan standar SNI serta saran harga',
+          ),
       }),
     );
 
@@ -110,7 +130,8 @@ export class AiService {
       const response = await this.chat.invoke([
         new SystemMessage(
           'You are an expert agricultural quality inspector in Indonesia. ' +
-            'Analyze the product information and provide quality grading according to SNI standards.',
+            'Analyze the product information and provide quality grading according to SNI standards. ' +
+            'In your reasoning (alasan), provide a complete and clear explanation detailing why the product received its grade, including references to physical quality indicators, SNI criteria, and pricing context.',
         ),
         new HumanMessage(
           `Analyze this product:\n` +

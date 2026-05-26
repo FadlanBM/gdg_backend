@@ -25,16 +25,13 @@ export class ProductsService {
     private hargapanganService: HargapanganService,
   ) {}
 
-  async create(
-    petaniId: string,
-    body: any,
-    files: Express.Multer.File[],
-  ) {
-    const fotoUrl = files.length > 0
-      ? await Promise.all(
-          files.map((file) => this.assetsService.saveFile(file, 'products')),
-        )
-      : [];
+  async create(petaniId: string, body: any, files: Express.Multer.File[]) {
+    const fotoUrl =
+      files.length > 0
+        ? await Promise.all(
+            files.map((file) => this.assetsService.saveFile(file, 'products')),
+          )
+        : [];
 
     const results = await this.db
       .insert(schema.products)
@@ -69,12 +66,10 @@ export class ProductsService {
       conditions.push(eq(schema.products.status, status));
     }
 
-    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    const whereClause =
+      conditions.length === 1 ? conditions[0] : and(...conditions);
 
-    const baseQuery = this.db
-      .select()
-      .from(schema.products)
-      .where(whereClause);
+    const baseQuery = this.db.select().from(schema.products).where(whereClause);
 
     const countQuery = this.db
       .select({ count: sql<number>`count(*)` })
@@ -115,11 +110,13 @@ export class ProductsService {
       );
     }
 
-    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    const whereClause =
+      conditions.length === 1 ? conditions[0] : and(...conditions);
 
-    const orderBy = sort === 'desc'
-      ? desc(schema.products.harga)
-      : asc(schema.products.harga);
+    const orderBy =
+      sort === 'desc'
+        ? desc(schema.products.harga)
+        : asc(schema.products.harga);
 
     const baseQuery = this.db
       .select()
@@ -164,14 +161,16 @@ export class ProductsService {
       if (cat.length > 0) kategoriName = cat[0].nama;
     }
 
-    let imageUrl = '';
+    let imageBase64 = '';
     if (files.length > 0) {
-      imageUrl = await this.assetsService.saveFile(files[0], 'products');
+      const file = files[0];
+      const base64 = file.buffer.toString('base64');
+      imageBase64 = `data:${file.mimetype};base64,${base64}`;
     }
 
     return this.aiService.generateDescription({
       namaProduk,
-      imageUrl,
+      imageBase64,
       kategori: kategoriName,
     });
   }
@@ -200,7 +199,9 @@ export class ProductsService {
       if (cat.length > 0) kategoriName = cat[0].nama;
     }
 
-    let marketPrices: { commodity: string; price: number; denomination: string }[] | undefined = undefined;
+    let marketPrices:
+      | { commodity: string; price: number; denomination: string }[]
+      | undefined = undefined;
     try {
       const pricesData = await this.hargapanganService.getPrices();
       marketPrices = pricesData.prices.map((p) => ({
@@ -209,7 +210,9 @@ export class ProductsService {
         denomination: p.denomination,
       }));
     } catch (e) {
-      this.logger.warn('Failed to fetch hargapangan prices, proceeding without market data');
+      this.logger.warn(
+        'Failed to fetch hargapangan prices, proceeding without market data',
+      );
     }
 
     const analysisResult = await this.aiService.analyzeProduct({

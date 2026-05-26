@@ -14,7 +14,9 @@ export class HargapanganController {
   }
 
   @Get('market-types')
-  @ApiOperation({ summary: 'Get all market types (Traditional, Modern, Wholesaler, Producer)' })
+  @ApiOperation({
+    summary: 'Get all market types (Traditional, Modern, Wholesaler, Producer)',
+  })
   getMarketTypes() {
     return this.hargapanganService.getMarketTypes();
   }
@@ -30,7 +32,8 @@ export class HargapanganController {
   @ApiQuery({
     name: 'marketTypeId',
     required: false,
-    description: 'Market Type ID (1: Traditional, 2: Modern, 3: Wholesaler, 4: Producer)',
+    description:
+      'Market Type ID (1: Traditional, 2: Modern, 3: Wholesaler, 4: Producer)',
     type: Number,
   })
   getPrices(

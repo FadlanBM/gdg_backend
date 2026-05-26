@@ -87,7 +87,10 @@ export class AuthService {
     let uploadedFotoUrl: string | undefined = undefined;
     if (fotoProfil) {
       try {
-        uploadedFotoUrl = await this.assetsService.saveFile(fotoProfil, 'avatars');
+        uploadedFotoUrl = await this.assetsService.saveFile(
+          fotoProfil,
+          'avatars',
+        );
       } catch (err) {
         console.error('Failed to upload profile photo:', err);
       }

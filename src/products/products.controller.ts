@@ -68,8 +68,17 @@ export class ProductsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all products with pagination (Katalog)' })
-  @ApiQuery({ name: 'search', required: false, description: 'Search by product name or description' })
-  @ApiQuery({ name: 'sort', required: false, enum: ['asc', 'desc'], description: 'Sort by price (asc/desc)' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search by product name or description',
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    enum: ['asc', 'desc'],
+    description: 'Sort by price (asc/desc)',
+  })
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -91,7 +100,11 @@ export class ProductsController {
   @Roles('petani')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get my products (Petani only)' })
-  @ApiQuery({ name: 'status', required: false, enum: ['active', 'non-active', 'pending'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'non-active', 'pending'],
+  })
   findMyProducts(
     @Request() req,
     @Query('page') page?: string,
@@ -117,13 +130,19 @@ export class ProductsController {
   @Roles('petani')
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Generate AI product description from image (Petani only)' })
+  @ApiOperation({
+    summary: 'Generate AI product description from image (Petani only)',
+  })
   @ApiBody({
     schema: {
       type: 'object',
       required: ['namaProduk', 'kategoriId'],
       properties: {
-        file: { type: 'string', format: 'binary', description: 'Gambar produk' },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Gambar produk',
+        },
         namaProduk: { type: 'string', example: 'Tomat Organik' },
         kategoriId: { type: 'string', example: 'uuid-kategori' },
       },
