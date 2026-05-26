@@ -69,23 +69,20 @@ export class ProductsController {
   @Get()
   @ApiOperation({ summary: 'Get all products with pagination (Katalog)' })
   @ApiQuery({ name: 'search', required: false, description: 'Search by product name or description' })
-  @ApiQuery({ name: 'hargaMin', required: false, description: 'Minimum price filter' })
-  @ApiQuery({ name: 'hargaMax', required: false, description: 'Maximum price filter' })
+  @ApiQuery({ name: 'sort', required: false, enum: ['asc', 'desc'], description: 'Sort by price (asc/desc)' })
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('kategoriId') kategoriId?: string,
     @Query('search') search?: string,
-    @Query('hargaMin') hargaMin?: string,
-    @Query('hargaMax') hargaMax?: string,
+    @Query('sort') sort?: 'asc' | 'desc',
   ) {
     return this.productsService.findAll(
       page ? Number(page) : 1,
       limit ? Number(limit) : 10,
       kategoriId,
       search,
-      hargaMin ? Number(hargaMin) : undefined,
-      hargaMax ? Number(hargaMax) : undefined,
+      sort,
     );
   }
 
@@ -113,6 +110,38 @@ export class ProductsController {
   @ApiOperation({ summary: 'Get product details' })
   findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
+  }
+
+  @Post('generate-description')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('petani')
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Generate AI product description from image (Petani only)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['namaProduk', 'kategoriId'],
+      properties: {
+        file: { type: 'string', format: 'binary', description: 'Gambar produk' },
+        namaProduk: { type: 'string', example: 'Tomat Organik' },
+        kategoriId: { type: 'string', example: 'uuid-kategori' },
+      },
+    },
+  })
+  @UseInterceptors(FilesInterceptor('file', 1, { storage: memoryStorage() }))
+  generateDescription(
+    @Request() req,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('namaProduk') namaProduk: string,
+    @Body('kategoriId') kategoriId: string,
+  ) {
+    return this.productsService.generateDescription(
+      req.user.userId,
+      namaProduk,
+      kategoriId,
+      files || [],
+    );
   }
 
   @Post(':id/analyze')

@@ -9,7 +9,7 @@ import {
 import { DRIZZLE } from '../database/database.provider';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
-import { eq, sql, and, SQL } from 'drizzle-orm';
+import { eq, sql, and, asc, desc, SQL } from 'drizzle-orm';
 import { AssetsService } from '../common/assets/assets.service';
 import { AiService } from '../common/ai/ai.service';
 import { HargapanganService } from '../hargapangan/hargapangan.service';
@@ -99,8 +99,7 @@ export class ProductsService {
     limit: number = 10,
     kategoriId?: string,
     search?: string,
-    hargaMin?: number,
-    hargaMax?: number,
+    sort?: 'asc' | 'desc',
   ) {
     const offset = (page - 1) * limit;
 
@@ -116,20 +115,17 @@ export class ProductsService {
       );
     }
 
-    if (hargaMin !== undefined) {
-      conditions.push(sql`${schema.products.harga}::numeric >= ${hargaMin}`);
-    }
-
-    if (hargaMax !== undefined) {
-      conditions.push(sql`${schema.products.harga}::numeric <= ${hargaMax}`);
-    }
-
     const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+    const orderBy = sort === 'desc'
+      ? desc(schema.products.harga)
+      : asc(schema.products.harga);
 
     const baseQuery = this.db
       .select()
       .from(schema.products)
-      .where(whereClause);
+      .where(whereClause)
+      .orderBy(orderBy);
     const countQuery = this.db
       .select({ count: sql<number>`count(*)` })
       .from(schema.products)
@@ -151,6 +147,33 @@ export class ProductsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async generateDescription(
+    userId: string,
+    namaProduk: string,
+    kategoriId: string,
+    files: Express.Multer.File[],
+  ) {
+    let kategoriName = '';
+    if (kategoriId) {
+      const cat = await this.db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.id, kategoriId));
+      if (cat.length > 0) kategoriName = cat[0].nama;
+    }
+
+    let imageUrl = '';
+    if (files.length > 0) {
+      imageUrl = await this.assetsService.saveFile(files[0], 'products');
+    }
+
+    return this.aiService.generateDescription({
+      namaProduk,
+      imageUrl,
+      kategori: kategoriName,
+    });
   }
 
   async findOne(id: string) {
