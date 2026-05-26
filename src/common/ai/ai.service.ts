@@ -20,6 +20,60 @@ export class AiService {
     });
   }
 
+  async generateDescription(params: {
+    namaProduk: string;
+    imageUrl: string;
+    kategori: string;
+  }) {
+    const parser = StructuredOutputParser.fromZodSchema(
+      z.object({
+        deskripsi: z.string().describe('Deskripsi produk yang menarik dan informatif dalam bahasa Indonesia'),
+        kataKunci: z.array(z.string()).describe('Kata kunci SEO untuk produk ini'),
+      }),
+    );
+
+    const formatInstructions = parser.getFormatInstructions();
+
+    const visionModel = new ChatOpenAI({
+      openAIApiKey: this.configService.get<string>('openai.apiKey'),
+      configuration: {
+        baseURL: this.configService.get<string>('openai.baseUrl'),
+      },
+      modelName: 'gpt-4o-mini',
+      temperature: 0.3,
+    });
+
+    try {
+      const response = await visionModel.invoke([
+        new SystemMessage(
+          'Anda adalah asisten ahli pertanian dan pembuat konten produk di Indonesia. ' +
+          'Buatlah deskripsi produk yang menarik, informatif, dan meyakinkan berdasarkan gambar produk, nama, dan kategori yang diberikan. ' +
+          'Gunakan bahasa Indonesia yang baik dan benar.',
+        ),
+        new HumanMessage({
+          content: [
+            {
+              type: 'text',
+              text: `Buatkan deskripsi produk untuk:\nNama: ${params.namaProduk}\nKategori: ${params.kategori}\n\n${formatInstructions}`,
+            },
+            {
+              type: 'image_url',
+              image_url: { url: params.imageUrl },
+            },
+          ],
+        }),
+      ]);
+
+      return await parser.parse(response.content as string);
+    } catch (e) {
+      console.error('AI Generate Description Error:', e);
+      return {
+        deskripsi: `${params.namaProduk} berkualitas tinggi, segar dan siap dikonsumsi. Cocok untuk kebutuhan sehari-hari Anda.`,
+        kataKunci: [params.namaProduk, params.kategori, 'produk segar'],
+      };
+    }
+  }
+
   async analyzeProduct(productInfo: {
     nama: string;
     deskripsi: string;
