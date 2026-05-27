@@ -23,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/guards/roles.decorator';
@@ -68,9 +69,9 @@ export class TransactionsController {
   @ApiOperation({ summary: 'Update order status (Petani only)' })
   updateStatus(
     @Param('id') id: string,
-    @Body('status') status: 'diproses' | 'dikirim' | 'selesai',
+    @Body() dto: UpdateStatusDto,
   ) {
-    return this.transactionsService.updateStatus(id, status);
+    return this.transactionsService.updateStatus(id, dto.status);
   }
 
   @Patch(':id/payment')

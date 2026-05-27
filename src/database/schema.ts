@@ -198,7 +198,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   }),
   products: many(products),
   carts: many(carts),
-  transactions: many(transactions),
+  transactionsAsPembeli: many(transactions, { relationName: 'pembeli' }),
+  transactionsAsPetani: many(transactions, { relationName: 'petani' }),
 }));
 
 export const rolesRelations = relations(roles, ({ many }) => ({
@@ -264,10 +265,12 @@ export const transactionsRelations = relations(
     pembeli: one(users, {
       fields: [transactions.pembeliId],
       references: [users.id],
+      relationName: 'pembeli',
     }),
     petani: one(users, {
       fields: [transactions.petaniId],
       references: [users.id],
+      relationName: 'petani',
     }),
     items: many(transactionItems),
   }),
