@@ -187,6 +187,46 @@ export class ProductsService {
     return results[0];
   }
 
+  async analyzePrice(categoryId: string, productName?: string) {
+    if (!categoryId) {
+      throw new BadRequestException('ID kategori harus diberikan untuk analisis harga');
+    }
+
+    const categoryResults = await this.db
+      .select()
+      .from(schema.categories)
+      .where(eq(schema.categories.id, categoryId));
+
+    if (categoryResults.length === 0) {
+      throw new NotFoundException('Kategori tidak ditemukan');
+    }
+    const category = categoryResults[0];
+
+    let pricesData: any[] = [];
+    try {
+      const pricesResponse = await this.hargapanganService.getPrices();
+      pricesData = pricesResponse.prices ?? [];
+      this.logger.log(`Fetched ${pricesData.length} commodity prices for analysis`);
+    } catch (e) {
+      this.logger.warn('Gagal mengambil data harga pasar, AI akan tetap menganalisis tanpa data referensi');
+    }
+
+    const searchKeyword = productName || category.nama;
+    const keywords = searchKeyword.toLowerCase().split(' ');
+    const relevantPrices = pricesData.filter((p) =>
+      keywords.some((kw) => p.commodity.toLowerCase().includes(kw)),
+    );
+
+    const dataToAnalyze = relevantPrices.length > 0 ? relevantPrices : pricesData;
+    const analysis = await this.aiService.analyzeCategoryPrice(searchKeyword, dataToAnalyze);
+
+    return {
+      category: category?.nama,
+      productName: productName,
+      aiAnalysis: analysis,
+    };
+  }
+
   async analyze(id: string) {
     const product = await this.findOne(id);
 
@@ -280,5 +320,75 @@ export class ProductsService {
         `Failed to update status. Ensure status is 'active' or 'non-active'.`,
       );
     }
+  }
+
+  async analyzePriceWithImages(params: {
+    files: Express.Multer.File[];
+    productName?: string;
+    category?: string;
+    location?: string;
+    additionalContext?: string;
+  }) {
+    const { files, productName, category, location, additionalContext } = params;
+
+    // Validasi: harus ada minimal 1 gambar
+    if (!files || files.length === 0) {
+      throw new BadRequestException('Minimal 1 gambar produk harus diunggah');
+    }
+
+    // Validasi: maksimal 10 gambar
+    if (files.length > 10) {
+      throw new BadRequestException('Maksimal 10 gambar yang diperbolehkan');
+    }
+
+    // Validasi format dan ukuran setiap file
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+
+    for (const file of files) {
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        throw new BadRequestException(
+          `Format file tidak didukung: ${file.originalname}. Gunakan jpg, jpeg, png, atau webp.`,
+        );
+      }
+      if (file.size > maxSizeBytes) {
+        throw new BadRequestException(
+          `Ukuran file ${file.originalname} melebihi batas 10MB.`,
+        );
+      }
+    }
+
+    // Konversi semua file ke base64 data URL
+    const imagesBase64 = files.map(
+      (file) => `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+    );
+
+    // Ambil harga pasar sebagai referensi (opsional, tidak blocking)
+    let marketPrices: { commodity: string; nominal: number; denomination: string }[] = [];
+    try {
+      const pricesResponse = await this.hargapanganService.getPrices();
+      marketPrices = (pricesResponse.prices ?? []).map((p) => ({
+        commodity: p.commodity,
+        nominal: p.nominal,
+        denomination: p.denomination,
+      }));
+      this.logger.log(`Fetched ${marketPrices.length} market prices for image analysis reference`);
+    } catch (e) {
+      this.logger.warn('Gagal mengambil data harga pasar, analisis gambar tetap dilanjutkan');
+    }
+
+    const analysis = await this.aiService.analyzeProductImages({
+      imagesBase64,
+      productName,
+      category,
+      location,
+      additionalContext,
+      marketPrices,
+    });
+
+    return {
+      success: true,
+      data: analysis,
+    };
   }
 }

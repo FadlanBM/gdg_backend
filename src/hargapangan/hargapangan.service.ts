@@ -1,5 +1,4 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 
 interface CacheEntry<T> {
   data: T;
@@ -13,52 +12,26 @@ export interface CommodityPrice {
   changePercentage: number;
   denomination: string;
   date: string | null;
+  market?: string;
+  trend?: string;
 }
 
 export interface PricesResponse {
-  provinceId: number;
-  marketTypeId: number;
+  source: string;
   updatedAt: string;
   prices: CommodityPrice[];
+}
+
+export interface MarketInfo {
+  id: number;
+  nama: string;
 }
 
 @Injectable()
 export class HargapanganService {
   private readonly logger = new Logger(HargapanganService.name);
   private cache = new Map<string, CacheEntry<any>>();
-  private readonly baseUrl: string;
-
-  constructor(private configService: ConfigService) {
-    this.baseUrl = this.configService.get<string>(
-      'hargaPangan.url',
-      'https://www.bi.go.id/hargapangan',
-    );
-  }
-
-  // List of 21 commodities tracked on the home page
-  private readonly commodities = [
-    'Bawang Merah Ukuran Sedang',
-    'Bawang Putih Ukuran Sedang',
-    'Beras Kualitas Bawah I',
-    'Beras Kualitas Bawah II',
-    'Beras Kualitas Medium I',
-    'Beras Kualitas Medium II',
-    'Beras Kualitas Super I',
-    'Beras Kualitas Super II',
-    'Cabai Merah Besar',
-    'Cabai Merah Keriting ',
-    'Cabai Rawit Hijau',
-    'Cabai Rawit Merah',
-    'Daging Ayam Ras Segar',
-    'Daging Sapi Kualitas 1',
-    'Daging Sapi Kualitas 2',
-    'Gula Pasir Kualitas Premium',
-    'Gula Pasir Lokal',
-    'Minyak Goreng Curah',
-    'Minyak Goreng Kemasan Bermerk 1',
-    'Minyak Goreng Kemasan Bermerk 2',
-    'Telur Ayam Ras Segar',
-  ];
+  private readonly baseUrl = 'https://hargapangan.jogjakota.go.id';
 
   private getFromCache<T>(key: string): T | null {
     const entry = this.cache.get(key);
@@ -78,71 +51,66 @@ export class HargapanganService {
   }
 
   /**
-   * Fetch all provinces from Bank Indonesia
+   * Get list of markets (pasar) from Jogja Harga Pangan
    */
-  async getProvinces(): Promise<any[]> {
-    const cacheKey = 'provinces';
-    const cached = this.getFromCache<any[]>(cacheKey);
+  async getMarkets(): Promise<MarketInfo[]> {
+    const cacheKey = 'jogja_markets';
+    const cached = this.getFromCache<MarketInfo[]>(cacheKey);
     if (cached) return cached;
 
     try {
-      this.logger.log('Fetching provinces list from BI...');
-      const response = await fetch(
-        `${this.baseUrl}/WebSite/Home/GetProvinceAll`,
-      );
+      this.logger.log('Fetching markets list from Jogja Harga Pangan...');
+      const response = await fetch(`${this.baseUrl}/harga_pangan`, {
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml',
+          'User-Agent': 'Mozilla/5.0 (compatible; AgriBot/1.0)',
+        },
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
-      const data = await response.json();
 
-      // Cache for 24 hours
-      this.setToCache(cacheKey, data, 24 * 60 * 60 * 1000);
-      return data;
+      const html = await response.text();
+
+      // Extract pasar options from the HTML select/dropdown
+      const pasarMatches = html.matchAll(/value="(\d+)"[^>]*>([^<]+Pasar[^<]*)<\/option>/gi);
+      const markets: MarketInfo[] = [];
+
+      for (const match of pasarMatches) {
+        markets.push({
+          id: parseInt(match[1], 10),
+          nama: match[2].trim(),
+        });
+      }
+
+      // If no pasar found via select, provide default known markets
+      if (markets.length === 0) {
+        markets.push(
+          { id: 1, nama: 'Pasar Beringharjo' },
+          { id: 2, nama: 'Pasar Kotagede' },
+          { id: 3, nama: 'Pasar Kranggan' },
+          { id: 4, nama: 'Pasar Legi' },
+          { id: 5, nama: 'Pasar Satwa' },
+        );
+      }
+
+      this.setToCache(cacheKey, markets, 24 * 60 * 60 * 1000);
+      return markets;
     } catch (error) {
-      this.logger.error('Failed to fetch provinces', error);
+      this.logger.error('Failed to fetch markets', error);
       throw new HttpException(
-        'Failed to retrieve provinces list from Bank Indonesia',
+        'Gagal mengambil daftar pasar dari Jogja Harga Pangan',
         HttpStatus.BAD_GATEWAY,
       );
     }
   }
 
   /**
-   * Fetch all market/price types from Bank Indonesia
+   * Fetch real-time food prices from Jogja Harga Pangan
    */
-  async getMarketTypes(): Promise<any[]> {
-    const cacheKey = 'market_types';
-    const cached = this.getFromCache<any[]>(cacheKey);
-    if (cached) return cached;
-
-    try {
-      this.logger.log('Fetching market types list from BI...');
-      const response = await fetch(`${this.baseUrl}/WebSite/Home/GetType`);
-      if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status}`);
-      }
-      const data = await response.json();
-
-      // Cache for 24 hours
-      this.setToCache(cacheKey, data, 24 * 60 * 60 * 1000);
-      return data;
-    } catch (error) {
-      this.logger.error('Failed to fetch market types', error);
-      throw new HttpException(
-        'Failed to retrieve market types from Bank Indonesia',
-        HttpStatus.BAD_GATEWAY,
-      );
-    }
-  }
-
-  /**
-   * Fetch real-time food prices by province and market type
-   */
-  async getPrices(
-    provinceId: number = 0,
-    marketTypeId: number = 1,
-  ): Promise<PricesResponse> {
-    const cacheKey = `prices:${provinceId}:${marketTypeId}`;
+  async getPrices(pasarId?: number): Promise<PricesResponse> {
+    const cacheKey = `jogja_prices:${pasarId ?? 'all'}`;
     const cached = this.getFromCache<PricesResponse>(cacheKey);
     if (cached) {
       this.logger.log(`Serving prices from cache for key: ${cacheKey}`);
@@ -151,93 +119,124 @@ export class HargapanganService {
 
     try {
       this.logger.log(
-        `Initiating food prices scrape (provinceId: ${provinceId}, marketTypeId: ${marketTypeId})`,
+        `Fetching Jogja Harga Pangan prices (pasarId: ${pasarId ?? 'all'})`,
       );
 
-      // 1. Fetch home page to extract temp_id
-      const homeRes = await fetch(`${this.baseUrl}/home/index`);
-      if (!homeRes.ok) {
-        throw new Error(`Failed to load home page: ${homeRes.statusText}`);
-      }
-      const html = await homeRes.text();
+      const params = new URLSearchParams({
+        draw: '1',
+        start: '0',
+        length: '100',
+        'search[value]': '',
+      });
 
-      const tempIdMatch = html.match(/id="temp_id"[^>]*value="([^"]+)"/);
-      if (!tempIdMatch) {
-        throw new Error('Failed to parse temp_id from the BI home page HTML');
-      }
-      const tempId = tempIdMatch[1];
-      this.logger.debug(`Extracted tempId: ${tempId}`);
-
-      // 2. If filtering by specific province or non-default market type, trigger the session update
-      if (provinceId !== 0 || marketTypeId !== 1) {
-        this.logger.log(
-          `Updating BI session chart data for provId: ${provinceId}, priceTypeId: ${marketTypeId}`,
-        );
-        const updateUrl = `${this.baseUrl}/WebSite/Home/UpdateChartData?tempId=${tempId}&provId=${provinceId}&priceTypeId=${marketTypeId}`;
-        const updateRes = await fetch(updateUrl);
-        if (!updateRes.ok) {
-          this.logger.warn(
-            `Failed to update chart session data: ${updateRes.statusText}`,
-          );
-        }
+      if (pasarId) {
+        params.set('id_pasar', String(pasarId));
       }
 
-      // 3. Fetch data for each commodity in parallel
-      const pricePromises = this.commodities.map(
-        async (com): Promise<CommodityPrice> => {
-          try {
-            const dataUrl = `${this.baseUrl}/WebSite/Home/GetChartData?tempId=${tempId}&comName=${encodeURIComponent(com)}&forInfo=true`;
-            const dataRes = await fetch(dataUrl);
-            if (!dataRes.ok) {
-              throw new Error(`HTTP Error: ${dataRes.status}`);
-            }
-            const json = await dataRes.json();
-            const item = json.data?.[0];
-
-            return {
-              commodity: com,
-              nominal: item?.nominal ?? 0,
-              change: item?.harga ?? 0,
-              changePercentage: item?.fluc ?? 0,
-              denomination: item?.denomination ?? 'kg',
-              date: item?.date
-                ? new Date(item.date).toISOString().split('T')[0]
-                : null,
-            };
-          } catch (err) {
-            this.logger.error(
-              `Error fetching price for commodity [${com}]:`,
-              err.message,
-            );
-            return {
-              commodity: com,
-              nominal: 0,
-              change: 0,
-              changePercentage: 0,
-              denomination: 'kg',
-              date: null,
-            };
-          }
+      const response = await fetch(
+        `${this.baseUrl}/harga_pangan?${params.toString()}`,
+        {
+          headers: {
+            'Accept': 'application/json, text/javascript, */*',
+            'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent': 'Mozilla/5.0 (compatible; AgriBot/1.0)',
+          },
         },
       );
 
-      const prices = await Promise.all(pricePromises);
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      const json = await response.json();
+
+      if (!json.data || !Array.isArray(json.data)) {
+        throw new Error('Invalid response structure from Jogja Harga Pangan');
+      }
+
+      const prices: CommodityPrice[] = json.data.map((item: any) => {
+        const komoditas = item.komoditas ?? {};
+        const satuan = komoditas.satuan?.nama_satuan ?? 'Kg';
+        const pasar = item.pasar ?? {};
+
+        return {
+          commodity: komoditas.nama_komoditas ?? 'Unknown',
+          nominal: item.harga_pangan ?? 0,
+          change: item.perubahan_rp ?? 0,
+          changePercentage: item.perubahan_persen ?? 0,
+          denomination: satuan,
+          date: item.tgl_harga_pangan ?? null,
+          market: pasar.nama_pasar ?? null,
+          trend: item.param_trend ?? 'tetap',
+        };
+      });
 
       const responseData: PricesResponse = {
-        provinceId,
-        marketTypeId,
-        updatedAt: new Date().toISOString(),
+        source: 'Sistem Informasi Harga Pangan Kota Yogyakarta',
+        updatedAt: json.tgl_terakhir_verif ?? new Date().toISOString().split('T')[0],
         prices,
       };
 
-      // Cache for 1 hour (3600000 ms)
+      // Cache for 1 hour
       this.setToCache(cacheKey, responseData, 60 * 60 * 1000);
-
       return responseData;
     } catch (error) {
-      this.logger.error('Scraping food prices failed', error);
+      this.logger.error('Scraping Jogja food prices failed', error);
       throw new HttpException(
-        `Failed to retrieve food prices: ${error.message}`,
+        `Gagal mengambil data harga pangan: ${error.message}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  /**
+   * Get price changes today
+   */
+  async getPriceChanges(pasarId?: number): Promise<any> {
+    const cacheKey = `jogja_changes:${pasarId ?? 'all'}`;
+    const cached = this.getFromCache<any>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      this.logger.log('Fetching today price changes from Jogja Harga Pangan...');
+
+      const url = new URL(`${this.baseUrl}/harga_pangan/perubahan_hari_ini`);
+      if (pasarId) {
+        url.searchParams.set('id_pasar', String(pasarId));
+      }
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'User-Agent': 'Mozilla/5.0 (compatible; AgriBot/1.0)',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      const json = await response.json();
+
+      const result = {
+        source: 'Sistem Informasi Harga Pangan Kota Yogyakarta',
+        updatedAt: new Date().toISOString(),
+        changes: (json.data ?? []).map((item: any) => ({
+          commodity: item.nama_komoditas,
+          market: item.nama_pasar,
+          price: item.harga_pangan,
+          trend: item.trand,
+          changePercentage: item.persentase,
+        })),
+      };
+
+      this.setToCache(cacheKey, result, 30 * 60 * 1000);
+      return result;
+    } catch (error) {
+      this.logger.error('Failed to fetch price changes', error);
+      throw new HttpException(
+        `Gagal mengambil perubahan harga hari ini: ${error.message}`,
         HttpStatus.BAD_GATEWAY,
       );
     }

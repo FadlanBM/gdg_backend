@@ -119,6 +119,48 @@ export class ProductsController {
     );
   }
 
+  @Post('analyze-price')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('petani', 'admin')
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Analisis harga & kualitas produk dari multiple gambar menggunakan AI Vision (Petani/Admin)',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['images'],
+      properties: {
+        images: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Gambar produk (min 1, maks 10 gambar | jpg/jpeg/png/webp | maks 10MB/gambar)',
+        },
+        productName: { type: 'string', example: 'Mangga Harum Manis' },
+        category: { type: 'string', example: 'Buah' },
+        location: { type: 'string', example: 'Yogyakarta' },
+        additionalContext: { type: 'string', example: 'Dipanen kemarin pagi' },
+      },
+    },
+  })
+  @UseInterceptors(FilesInterceptor('images', 10, { storage: memoryStorage() }))
+  analyzePriceWithImages(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('productName') productName?: string,
+    @Body('category') category?: string,
+    @Body('location') location?: string,
+    @Body('additionalContext') additionalContext?: string,
+  ) {
+    return this.productsService.analyzePriceWithImages({
+      files: files || [],
+      productName,
+      category,
+      location,
+      additionalContext,
+    });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get product details' })
   findOne(@Param('id') id: string) {

@@ -10,10 +10,17 @@ import * as schema from '../database/schema';
 import { eq } from 'drizzle-orm';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { AiService } from '../common/ai/ai.service';
+import { HargapanganService } from '../hargapangan/hargapangan.service';
 
 @Injectable()
 export class CategoriesService {
-  constructor(@Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>) {}
+  constructor(
+    @Inject(DRIZZLE) private db: NodePgDatabase<typeof schema>,
+    private readonly aiService: AiService,
+    private readonly hargapanganService: HargapanganService,
+  ) {}
+
 
   async create(dto: CreateCategoryDto) {
     try {
