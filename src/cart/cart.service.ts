@@ -58,13 +58,45 @@ export class CartService {
               },
               with: {
                 profile: true,
+                location: true,
               },
             },
           },
         },
       },
     });
-    return cartItems;
+    return cartItems.map((item) => {
+      if (item.product && item.product.petani) {
+        const petani = item.product.petani;
+        // Map location to the expected frontend fields
+        return {
+          ...item,
+          product: {
+            ...item.product,
+            petani: {
+              ...petani,
+              titikKoordinat: petani.location
+                ? {
+                    latitude: petani.location.latitude,
+                    longitude: petani.location.longitude,
+                  }
+                : null,
+              profile: petani.profile
+                ? {
+                    ...petani.profile,
+                    titikLokasi:
+                      petani.profile.titikLokasi ||
+                      (petani.location
+                        ? `${petani.location.latitude},${petani.location.longitude}`
+                        : null),
+                  }
+                : null,
+            },
+          },
+        };
+      }
+      return item;
+    });
   }
 
   async updateQuantity(id: string, dto: UpdateCartDto) {
