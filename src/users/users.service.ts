@@ -92,6 +92,7 @@ export class UsersService {
           alamatLengkap: schema.profiles.alamatLengkap,
           titikLokasi: schema.profiles.titikLokasi,
           fotoProfil: schema.profiles.fotoProfil,
+          saldo: schema.profiles.saldo,
           updatedAt: schema.profiles.updatedAt,
         },
         location: {
@@ -129,6 +130,7 @@ export class UsersService {
           alamatLengkap: schema.profiles.alamatLengkap,
           titikLokasi: schema.profiles.titikLokasi,
           fotoProfil: schema.profiles.fotoProfil,
+          saldo: schema.profiles.saldo,
         },
         location: {
           id: schema.userLocations.id,

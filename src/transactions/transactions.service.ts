@@ -123,6 +123,8 @@ export class TransactionsService {
 
     if (role === 'pembeli') {
       conditions.push(eq(schema.transactions.pembeliId, userId));
+    } else if (role === 'petani') {
+      conditions.push(eq(schema.transactions.petaniId, userId));
     }
 
     // Filter by status if provided
