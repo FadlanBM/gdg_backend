@@ -153,18 +153,28 @@ export class TransactionsService {
             profile: true,
           },
         },
+        petani: {
+          with: {
+            profile: true,
+          },
+        },
       },
     });
 
     // Format response
     return transactions.map((tx) => {
-      const { pembeli, ...txData } = tx;
+      const { pembeli, petani, ...txData } = tx;
       return {
         ...txData,
         pembeli: pembeli
           ? {
               namaLengkap: pembeli.profile?.namaLengkap,
               nomorTelepon: pembeli.profile?.nomorTelepon,
+            }
+          : null,
+        petani: petani
+          ? {
+              namaLengkap: petani.profile?.namaLengkap,
             }
           : null,
       };
