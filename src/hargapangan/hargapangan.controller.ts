@@ -7,41 +7,43 @@ import { HargapanganService } from './hargapangan.service';
 export class HargapanganController {
   constructor(private readonly hargapanganService: HargapanganService) {}
 
-  @Get('provinces')
-  @ApiOperation({ summary: 'Get all provinces tracked by Bank Indonesia' })
-  getProvinces() {
-    return this.hargapanganService.getProvinces();
-  }
-
-  @Get('market-types')
+  @Get('markets')
   @ApiOperation({
-    summary: 'Get all market types (Traditional, Modern, Wholesaler, Producer)',
+    summary: 'Ambil daftar pasar dari Sistem Informasi Harga Pangan Kota Yogyakarta',
   })
-  getMarketTypes() {
-    return this.hargapanganService.getMarketTypes();
+  getMarkets() {
+    return this.hargapanganService.getMarkets();
   }
 
   @Get('prices')
-  @ApiOperation({ summary: 'Get real-time prices for 21 food commodities' })
-  @ApiQuery({
-    name: 'provinceId',
-    required: false,
-    description: 'Province ID (use 0 or omit for National Average)',
-    type: Number,
+  @ApiOperation({
+    summary: 'Ambil harga komoditas pangan terkini dari Kota Yogyakarta',
   })
   @ApiQuery({
-    name: 'marketTypeId',
+    name: 'pasarId',
     required: false,
-    description:
-      'Market Type ID (1: Traditional, 2: Modern, 3: Wholesaler, 4: Producer)',
+    description: 'ID pasar (kosongkan untuk semua pasar)',
     type: Number,
   })
-  getPrices(
-    @Query('provinceId') provinceId?: string,
-    @Query('marketTypeId') marketTypeId?: string,
-  ) {
-    const provId = provinceId ? parseInt(provinceId, 10) : 0;
-    const mktTypeId = marketTypeId ? parseInt(marketTypeId, 10) : 1;
-    return this.hargapanganService.getPrices(provId, mktTypeId);
+  getPrices(@Query('pasarId') pasarId?: string) {
+    return this.hargapanganService.getPrices(
+      pasarId ? parseInt(pasarId, 10) : undefined,
+    );
+  }
+
+  @Get('price-changes')
+  @ApiOperation({
+    summary: 'Ambil perubahan harga komoditas hari ini dari Kota Yogyakarta',
+  })
+  @ApiQuery({
+    name: 'pasarId',
+    required: false,
+    description: 'ID pasar (kosongkan untuk semua pasar)',
+    type: Number,
+  })
+  getPriceChanges(@Query('pasarId') pasarId?: string) {
+    return this.hargapanganService.getPriceChanges(
+      pasarId ? parseInt(pasarId, 10) : undefined,
+    );
   }
 }
