@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "saldo" numeric(12, 2) DEFAULT '0';
