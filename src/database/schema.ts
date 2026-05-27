@@ -25,8 +25,9 @@ export const statusPembayaranEnum = pgEnum('status_pembayaran', [
   'gagal',
 ]);
 export const statusPesananEnum = pgEnum('status_pesanan', [
-  'diproses',
-  'dikirim',
+  'menunggu',
+  'diterima',
+  'ditolak',
   'selesai',
 ]);
 export const statusTransaksiEnum = pgEnum('status_transaksi', [
@@ -64,6 +65,7 @@ export const profiles = pgTable('profiles', {
   alamatLengkap: text('alamat_lengkap'),
   titikLokasi: varchar('titik_lokasi', { length: 255 }),
   fotoProfil: varchar('foto_profil', { length: 500 }),
+  saldo: decimal('saldo', { precision: 12, scale: 2 }).default('0'), // Add saldo here
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
@@ -161,7 +163,7 @@ export const transactions = pgTable('transactions', {
   metodeBayar: metodeBayarEnum('metode_bayar').notNull(),
   statusPembayaran:
     statusPembayaranEnum('status_pembayaran').default('menunggu'),
-  statusPesanan: statusPesananEnum('status_pesanan').default('diproses'),
+  statusPesanan: statusPesananEnum('status_pesanan').default('menunggu'),
   status: statusTransaksiEnum('status_transaksi').default('pending'),
   tanggalPengambilan: timestamp('tanggal_pengambilan'),
   buktiBayarUrl: varchar('bukti_bayar_url', { length: 500 }),

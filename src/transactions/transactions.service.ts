@@ -30,7 +30,7 @@ export class TransactionsService {
         status: dto.status,
         tanggalPengambilan: new Date(dto.tanggalPengambilan),
         statusPembayaran: 'menunggu',
-        statusPesanan: 'diproses',
+        statusPesanan: 'menunggu',
       })
       .returning();
 
@@ -169,16 +169,40 @@ export class TransactionsService {
     });
   }
 
-  async updateStatus(id: string, status: 'diproses' | 'dikirim' | 'selesai') {
+  async updateStatus(id: string, status: 'diterima' | 'ditolak' | 'selesai') {
+    // 1. Dapatkan informasi transaksi sebelum update
+    const transaction = await this.db.query.transactions.findFirst({
+      where: eq(schema.transactions.id, id),
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
     const results = await this.db
       .update(schema.transactions)
       .set({ statusPesanan: status })
       .where(eq(schema.transactions.id, id))
       .returning();
 
-    if (results.length === 0) {
-      throw new NotFoundException('Transaction not found');
+    // 2. Jika status diubah menjadi 'selesai', tambahkan saldo ke profil petani
+    if (status === 'selesai' && transaction.statusPesanan !== 'selesai') {
+      const petaniProfile = await this.db.query.profiles.findFirst({
+        where: eq(schema.profiles.userId, transaction.petaniId!),
+      });
+
+      if (petaniProfile) {
+        const currentSaldo = parseFloat(petaniProfile.saldo?.toString() || '0');
+        const transactionTotal = parseFloat(transaction.totalPembayaran.toString());
+        const newSaldo = currentSaldo + transactionTotal;
+
+        await this.db
+          .update(schema.profiles)
+          .set({ saldo: newSaldo.toString() })
+          .where(eq(schema.profiles.userId, transaction.petaniId!));
+      }
     }
+
     return results[0];
   }
 

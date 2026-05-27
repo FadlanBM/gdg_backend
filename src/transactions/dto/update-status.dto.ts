@@ -3,12 +3,12 @@ import { IsEnum } from 'class-validator';
 
 export class UpdateStatusDto {
   @ApiProperty({
-    example: 'dikirim',
-    enum: ['diproses', 'dikirim', 'selesai'],
+    example: 'diterima',
+    enum: ['diterima', 'ditolak', 'selesai'],
     description: 'Status pesanan baru',
   })
-  @IsEnum(['diproses', 'dikirim', 'selesai'], {
-    message: 'Status harus salah satu dari: diproses, dikirim, selesai',
+  @IsEnum(['diterima', 'ditolak', 'selesai'], {
+    message: 'Status harus salah satu dari: diterima, ditolak, selesai',
   })
-  status: 'diproses' | 'dikirim' | 'selesai';
+  status: 'diterima' | 'ditolak' | 'selesai';
 }
