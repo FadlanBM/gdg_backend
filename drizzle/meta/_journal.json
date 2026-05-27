@@ -64,6 +64,13 @@
       "when": 1779550000000,
       "tag": "0008_add_kategori_id_back",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779889729947,
+      "tag": "0009_dazzling_anthem",
+      "breakpoints": true
     }
   ]
 }

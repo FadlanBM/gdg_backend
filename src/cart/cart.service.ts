@@ -43,7 +43,7 @@ export class CartService {
   }
 
   async getCart(pembeliId: string) {
-    return this.db.query.carts.findMany({
+    const cartItems = await this.db.query.carts.findMany({
       where: and(
         eq(schema.carts.pembeliId, pembeliId),
         eq(schema.carts.isCheckout, false),
@@ -52,6 +52,10 @@ export class CartService {
         product: {
           with: {
             petani: {
+              columns: {
+                password: false,
+                googleId: false,
+              },
               with: {
                 profile: true,
               },
@@ -60,6 +64,7 @@ export class CartService {
         },
       },
     });
+    return cartItems;
   }
 
   async updateQuantity(id: string, dto: UpdateCartDto) {

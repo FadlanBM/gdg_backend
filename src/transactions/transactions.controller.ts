@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  Query,
   UseGuards,
   UseInterceptors,
   UploadedFile,
@@ -18,6 +19,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { CheckoutDto } from './dto/checkout.dto';
@@ -41,8 +43,18 @@ export class TransactionsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all transactions' })
-  findAll(@Request() req) {
-    return this.transactionsService.findAll(req.user.userId, req.user.role);
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['pending', 'accepted'],
+    description: 'Filter by transaction status',
+  })
+  findAll(@Request() req, @Query('status') status?: string) {
+    return this.transactionsService.findAll(
+      req.user.userId,
+      req.user.role,
+      status,
+    );
   }
 
   @Get(':id')

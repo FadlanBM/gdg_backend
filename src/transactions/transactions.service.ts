@@ -19,46 +19,16 @@ export class TransactionsService {
   ) {}
 
   async checkout(pembeliId: string, dto: CheckoutDto) {
-    // 1. Get items in cart
-    const cartItems = await this.db.query.carts.findMany({
-      where: and(
-        eq(schema.carts.pembeliId, pembeliId),
-        eq(schema.carts.isCheckout, false),
-      ),
-      with: {
-        product: {
-          with: {
-            aiAnalysis: true,
-          },
-        },
-      },
-    });
-
-    if (cartItems.length === 0) {
-      throw new BadRequestException('Cart is empty');
-    }
-
-    // 2. Calculate total and create snapshot
-    let total = 0;
-    const itemsToCreate = cartItems.map((item) => {
-      const harga = parseFloat(
-        item.product?.aiAnalysis?.hargaAkhirPetani || '0',
-      );
-      total += harga * item.jumlah;
-      return {
-        productId: item.productId,
-        jumlah: item.jumlah,
-        hargaSnapshot: harga.toString(),
-      };
-    });
-
-    // 3. Create Transaction
+    // 1. Create Transaction from the DTO directly
     const transaction = await this.db
       .insert(schema.transactions)
       .values({
         pembeliId,
-        totalPembayaran: total.toString(),
-        metodeBayar: dto.metodeBayar,
+        petaniId: dto.petaniId,
+        totalPembayaran: dto.totalHarga.toString(),
+        metodeBayar: dto.metodePembayaran,
+        status: dto.status,
+        tanggalPengambilan: new Date(dto.tanggalPengambilan),
         statusPembayaran: 'menunggu',
         statusPesanan: 'diproses',
       })
@@ -66,30 +36,30 @@ export class TransactionsService {
 
     const transactionId = transaction[0].id;
 
-    // 4. Create Transaction Items
+    // 2. Create Transaction Items from items in DTO
     await this.db.insert(schema.transactionItems).values(
-      itemsToCreate.map((item) => ({
-        ...item,
+      dto.items.map((item) => ({
         transactionId,
+        productId: item.productId,
+        jumlah: item.jumlah,
+        hargaSnapshot: item.hargaSatuan.toString(),
       })),
     );
 
-    // 5. Mark cart as checkout
-    await this.db
-      .update(schema.carts)
-      .set({ isCheckout: true })
-      .where(
-        inArray(
-          schema.carts.id,
-          cartItems.map((item) => item.id),
-        ),
-      );
+    // 3. Mark cart items as checked out
+    const cartIds = dto.items.map((item) => item.cartId);
+    if (cartIds.length > 0) {
+      await this.db
+        .update(schema.carts)
+        .set({ isCheckout: true })
+        .where(inArray(schema.carts.id, cartIds));
+    }
 
     return this.findOne(transactionId);
   }
 
   async findOne(id: string) {
-    const results = await this.db.query.transactions.findFirst({
+    const result = await this.db.query.transactions.findFirst({
       where: eq(schema.transactions.id, id),
       with: {
         items: {
@@ -97,40 +67,106 @@ export class TransactionsService {
             product: true,
           },
         },
+        pembeli: {
+          with: {
+            profile: true,
+            location: true,
+          },
+        },
+        petani: {
+          with: {
+            profile: true,
+            location: true,
+          },
+        },
       },
     });
-    if (!results) {
+    if (!result) {
       throw new NotFoundException('Transaction not found');
     }
-    return results;
+
+    // Format response to include alamatLengkap and titikKoordinat
+    const { pembeli, petani, ...transactionData } = result;
+    return {
+      ...transactionData,
+      pembeli: pembeli
+        ? {
+            namaLengkap: pembeli.profile?.namaLengkap,
+            nomorTelepon: pembeli.profile?.nomorTelepon,
+            alamatLengkap: pembeli.profile?.alamatLengkap,
+            titikKoordinat: pembeli.location
+              ? {
+                  latitude: pembeli.location.latitude,
+                  longitude: pembeli.location.longitude,
+                }
+              : null,
+          }
+        : null,
+      petani: petani
+        ? {
+            namaLengkap: petani.profile?.namaLengkap,
+            nomorTelepon: petani.profile?.nomorTelepon,
+            alamatLengkap: petani.profile?.alamatLengkap,
+            titikKoordinat: petani.location
+              ? {
+                  latitude: petani.location.latitude,
+                  longitude: petani.location.longitude,
+                }
+              : null,
+          }
+        : null,
+    };
   }
 
-  async findAll(userId: string, role: string) {
+  async findAll(userId: string, role: string, status?: string) {
+    const conditions: any[] = [];
+
     if (role === 'pembeli') {
-      return this.db.query.transactions.findMany({
-        where: eq(schema.transactions.pembeliId, userId),
-        with: {
-          items: {
-            with: {
-              product: true,
-            },
-          },
-        },
-      });
-    } else {
-      // Petani sees transactions containing their products
-      // This is a bit more complex with Drizzle query, using raw or subquery if needed
-      // For now, let's keep it simple and show all for demo if needed, or filter.
-      return this.db.query.transactions.findMany({
-        with: {
-          items: {
-            with: {
-              product: true,
-            },
-          },
-        },
-      });
+      conditions.push(eq(schema.transactions.pembeliId, userId));
     }
+
+    // Filter by status if provided
+    if (status) {
+      const normalizedStatus = status.toLowerCase();
+      if (normalizedStatus === 'pending' || normalizedStatus === 'accepted') {
+        conditions.push(
+          eq(schema.transactions.status, normalizedStatus as 'pending' | 'accepted'),
+        );
+      }
+    }
+
+    const whereClause =
+      conditions.length > 0 ? and(...conditions) : undefined;
+
+    const transactions = await this.db.query.transactions.findMany({
+      where: whereClause,
+      with: {
+        items: {
+          with: {
+            product: true,
+          },
+        },
+        pembeli: {
+          with: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    // Format response
+    return transactions.map((tx) => {
+      const { pembeli, ...txData } = tx;
+      return {
+        ...txData,
+        pembeli: pembeli
+          ? {
+              namaLengkap: pembeli.profile?.namaLengkap,
+              nomorTelepon: pembeli.profile?.nomorTelepon,
+            }
+          : null,
+      };
+    });
   }
 
   async updateStatus(id: string, status: 'diproses' | 'dikirim' | 'selesai') {

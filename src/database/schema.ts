@@ -18,7 +18,7 @@ export const productStatusEnum = pgEnum('status', [
   'active',
   'non-active',
 ]);
-export const metodeBayarEnum = pgEnum('metode_bayar', ['QRIS', 'Transfer']);
+export const metodeBayarEnum = pgEnum('metode_bayar', ['QRIS', 'Transfer', 'COD']);
 export const statusPembayaranEnum = pgEnum('status_pembayaran', [
   'menunggu',
   'berhasil',
@@ -28,6 +28,10 @@ export const statusPesananEnum = pgEnum('status_pesanan', [
   'diproses',
   'dikirim',
   'selesai',
+]);
+export const statusTransaksiEnum = pgEnum('status_transaksi', [
+  'pending',
+  'accepted',
 ]);
 
 // 0. Tabel Roles
@@ -149,6 +153,7 @@ export const carts = pgTable('carts', {
 export const transactions = pgTable('transactions', {
   id: uuid('id').primaryKey().defaultRandom(),
   pembeliId: uuid('pembeli_id').references(() => users.id),
+  petaniId: uuid('petani_id').references(() => users.id),
   totalPembayaran: decimal('total_pembayaran', {
     precision: 12,
     scale: 2,
@@ -157,6 +162,8 @@ export const transactions = pgTable('transactions', {
   statusPembayaran:
     statusPembayaranEnum('status_pembayaran').default('menunggu'),
   statusPesanan: statusPesananEnum('status_pesanan').default('diproses'),
+  status: statusTransaksiEnum('status_transaksi').default('pending'),
+  tanggalPengambilan: timestamp('tanggal_pengambilan'),
   buktiBayarUrl: varchar('bukti_bayar_url', { length: 500 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -256,6 +263,10 @@ export const transactionsRelations = relations(
   ({ one, many }) => ({
     pembeli: one(users, {
       fields: [transactions.pembeliId],
+      references: [users.id],
+    }),
+    petani: one(users, {
+      fields: [transactions.petaniId],
       references: [users.id],
     }),
     items: many(transactionItems),
