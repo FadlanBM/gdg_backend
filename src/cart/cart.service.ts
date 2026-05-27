@@ -49,7 +49,15 @@ export class CartService {
         eq(schema.carts.isCheckout, false),
       ),
       with: {
-        product: true,
+        product: {
+          with: {
+            petani: {
+              with: {
+                profile: true,
+              },
+            },
+          },
+        },
       },
     });
   }
